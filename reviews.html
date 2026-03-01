@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Отзывы | LavandaBloom</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+<body>
+
+<nav>
+    <ul>
+        <li><a href="index.html">Басты бет</a></li>
+        <li><a href="index.html#catalog">Каталог</a></li>
+        <li><a href="about.html">Біз туралы</a></li>
+        <li><a href="contact.html">Байланыс</a></li>
+        <li><a href="index.html">Кіру / Профиль</a></li>
+        <li>
+            <a href="card.html" id="cartBtn">
+                <i class="fas fa-shopping-cart"></i>
+                <span id="cartCount">0</span>
+            </a>
+        </li>
+    </ul>
+</nav>
+
+<section class="reviews-section" style="padding:40px; max-width:800px; margin:auto;">
+    <h1 id="productTitle">Отзывы</h1>
+    <div id="productInfo" style="text-align:center; margin-bottom:30px;"></div>
+    <div id="reviewsList" style="margin-bottom:30px;"></div>
+
+    <div id="leaveReview" style="display:none;">
+        <h3>Оставить отзыв</h3>
+        <label>Оценка:</label>
+        <select id="newRating">
+            <option value="">--</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+        </select><br><br>
+        <textarea id="newComment" placeholder="Комментарий" rows="4" style="width:100%;"></textarea><br>
+        <button id="submitReview">Отправить</button>
+    </div>
+</section>
+
+<script>
+function parseJwt(token) {
+    try {
+        const base64 = token.split('.')[1];
+        const json = decodeURIComponent(
+            Array.prototype.map
+                .call(atob(base64), c => '%'+('00'+c.charCodeAt(0).toString(16)).slice(-2))
+                .join('')
+        );
+        return JSON.parse(json);
+    } catch (e) {
+        return null;
+    }
+}
+
+// get query param
+function getParam(name) {
+    const params = new URLSearchParams(window.location.search);
+    return params.get(name);
+}
+
+async function loadPage() {
+    const id = getParam('productId');
+    if (!id) return document.body.innerHTML = '<p>Товар не указан</p>';
+
+    try {
+        const prodRes = await fetch(`http://localhost:3000/product/${id}`);
+        const product = await prodRes.json();
+        if (product.error) return alert(product.error);
+
+        document.getElementById('productTitle').innerText = `Отзывы: ${product.title}`;
+        document.getElementById('productInfo').innerHTML = `<img src=\"http://localhost:3000/uploads/${product.image_url}\" style=\"max-width:200px;\"><p>${product.description}</p>`;
+
+        await refreshReviews(id);
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+async function refreshReviews(productId) {
+    try {
+        const res = await fetch(`http://localhost:3000/reviews/${productId}`);
+        const reviews = await res.json();
+        const container = document.getElementById('reviewsList');
+        container.innerHTML = '';
+        if (!Array.isArray(reviews) || reviews.length === 0) {
+            container.innerHTML = '<p>Пока нет отзывов.</p>';
+        } else {
+            reviews.forEach(r => {
+                const el = document.createElement('div');
+                el.className = 'review-item';
+                el.style.borderBottom = '1px solid #ddd';
+                el.style.padding = '10px 0';
+                el.innerHTML = `<strong>${r.name}</strong> – ${r.rating}⭐<br>${r.comment || ''}`;
+                container.appendChild(el);
+            });
+        }
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+// show review form if logged in
+const token = localStorage.getItem('token');
+if (token) {
+    document.getElementById('leaveReview').style.display = 'block';
+    document.getElementById('submitReview').addEventListener('click', async () => {
+        const rating = document.getElementById('newRating').value;
+        const comment = document.getElementById('newComment').value;
+        const productId = getParam('productId');
+        if (!rating) return alert('Выберите оценку');
+        try {
+            const res = await fetch('http://localhost:3000/reviews', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({ productId, rating: parseInt(rating,10), comment })
+            });
+            const data = await res.json();
+            if (data.error) return alert(data.error);
+            alert('Отзыв добавлен');
+            await refreshReviews(productId);
+        } catch (err) {
+            console.error(err);
+            alert('Ошибка при отправке');
+        }
+    });
+}
+
+loadPage();
+</script>
+
+</body>
+</html>

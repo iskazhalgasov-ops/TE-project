@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="kk">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LavandaBloom | Гүл дүкені</title>
+
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Great+Vibes&display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap"
+        rel="stylesheet" />
+</head>
+
+<body>
+
+<div class="video-background">
+    <video autoplay muted loop playsinline>
+        <source src="images/13003129_3840_2160_25fps.mp4" type="video/mp4" />
+    </video>
+</div>
+
+<nav>
+    <ul>
+        <li><a href="index.html">Басты бет</a></li>
+        <li><a href="#catalog">Каталог</a></li>
+        <li><a href="about.html">Біз туралы</a></li>
+        <li><a href="contact.html">Байланыс</a></li>
+
+        <!-- Авторизация -->
+        <li id="authArea">
+            <a href="login.html">Кіру / Регистрация</a>
+        </li>
+
+        <!-- Корзина -->
+        <li>
+            <a href="card.html" id="cartBtn">
+                <i class="fas fa-shopping-cart"></i>
+                <span id="cartCount">0</span>
+            </a>
+        </li>
+    </ul>
+</nav>
+
+<section class="hero">
+    <h1 class="logo">LavandaBloom</h1>
+    <p class="subtitle">Гүлдердің нәзіктігі мен сұлулығы</p>
+    <a href="about.html" class="button">Толығырақ білу</a>
+</section>
+
+<section class="catalog" id="catalog"></section>
+
+<footer class="footer">
+    <p style="text-align:center;padding:20px;">
+        © 2025 LavandaBloom. Барлық құқықтар қорғалған.
+    </p>
+</footer>
+
+<script>
+/* =========================
+   ЗАГРУЗКА ТОВАРОВ
+========================= */
+
+async function loadProducts() {
+    try {
+        const res = await fetch('http://localhost:3000/products');
+        const products = await res.json();
+
+        const catalog = document.getElementById('catalog');
+        catalog.innerHTML = '';
+
+        products.forEach(product => {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'item';
+
+            itemDiv.innerHTML = `
+                <img src="http://localhost:3000/uploads/${product.image_url}" />
+                <h3>${product.title}</h3>
+                <p>${product.description}</p>
+                <p><strong>${product.price} ₸</strong></p>
+                <p id="reviews-${product.id}" class="avg-rating"></p>
+                <button class="review-btn" onclick="window.location.href='reviews.html?productId=${product.id}'">Отзывы</button>
+                <button class="buy-btn" onclick="addToCart(${product.id}, '${product.title.replace(/'/g, "\'")}', ${product.price}, '${product.image_url}')">
+                    Сатып алу
+                </button>
+            `;
+
+            catalog.appendChild(itemDiv);
+
+            // load average rating separately
+            fetch(`http://localhost:3000/reviews/${product.id}`)
+                .then(r => r.json())
+                .then(revs => {
+                    if (revs && revs.length) {
+                        const avg = revs.reduce((sum, r) => sum + r.rating, 0) / revs.length;
+                        document.getElementById(`reviews-${product.id}`).innerText = `⭐ ${avg.toFixed(1)} (${revs.length})`;
+                    } else {
+                        document.getElementById(`reviews-${product.id}`).innerText = "Нет отзывов";
+                    }
+                })
+                .catch(console.error);
+        });
+
+    } catch (err) {
+        console.error("Ошибка загрузки товаров:", err);
+    }
+}
+
+loadProducts();
+
+
+/* =========================
+   АВТОРИЗАЦИЯ
+========================= */
+
+const authArea = document.getElementById("authArea");
+
+function parseJwt(token) {
+    try {
+        // atob returns binary string; convert to UTF-8 safely
+        const base64 = token.split('.')[1];
+        const json = decodeURIComponent(
+            Array.prototype.map
+                .call(atob(base64), c => '%'+('00'+c.charCodeAt(0).toString(16)).slice(-2))
+                .join('')
+        );
+        return JSON.parse(json);
+    } catch (e) {
+        return null;
+    }
+}
+
+function checkAuth() {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    const userData = parseJwt(token);
+
+    if (userData) {
+        authArea.innerHTML = `
+            <div style="position:relative;">
+                <a href="#" id="userBtn">${userData.name}</a>
+                <div id="dropdown" style="
+                    display:none;
+                    position:absolute;
+                    right:0;
+                    background:white;
+                    box-shadow:0 5px 20px rgba(0,0,0,0.1);
+                    border-radius:10px;
+                    padding:10px;
+                ">
+                    <button onclick="logout()" style="
+                        background:#8e24aa;
+                        color:white;
+                        border:none;
+                        padding:8px 15px;
+                        border-radius:8px;
+                        cursor:pointer;
+                    ">Выйти</button>
+                </div>
+            </div>
+        `;
+
+        document.getElementById("userBtn").onclick = () => {
+            const drop = document.getElementById("dropdown");
+            drop.style.display =
+                drop.style.display === "block" ? "none" : "block";
+        };
+    }
+}
+
+function logout() {
+    localStorage.removeItem("token");
+    location.reload();
+}
+
+checkAuth();
+
+
+/* =========================
+   КОРЗИНА
+========================= */
+
+let cart = JSON.parse(localStorage.getItem("cart")) || [];
+
+function updateCartCount() {
+    const totalQty = cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
+    document.getElementById("cartCount").innerText = totalQty;
+}
+
+function addToCart(id, title, price, image) {
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+        alert("Сначала войдите в аккаунт!");
+        return;
+    }
+
+    const existing = cart.find(item => item.id === id);
+    if (existing) {
+        existing.quantity = (existing.quantity || 1) + 1;
+    } else {
+        cart.push({ id, title, price, image, quantity: 1 });
+    }
+
+    localStorage.setItem("cart", JSON.stringify(cart));
+    updateCartCount();
+
+    alert("Добавлено в корзину!");
+}
+
+
+updateCartCount();
+
+</script>
+
+</body>
+</html>

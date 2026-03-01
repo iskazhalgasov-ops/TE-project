@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LavandaBloom | Корзина</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+<body>
+
+<nav>
+    <ul>
+        <li><a href="index.html">Басты бет</a></li>
+        <li><a href="index.html#catalog">Каталог</a></li>
+        <li><a href="about.html">Біз туралы</a></li>
+        <li><a href="contact.html">Байланыс</a></li>
+        <li><a href="index.html">Кіру / Профиль</a></li>
+    </ul>
+</nav>
+
+<section class="cart-section">
+    <h1>Ваша корзина</h1>
+    <table class="cart-table">
+        <thead>
+            <tr>
+                <th>Товар</th>
+                <th>Цена</th>
+                <th>Количество</th>
+                <th>Сумма</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody id="cartContainer">
+            <!-- строки товаров добавляются скриптом -->
+        </tbody>
+    </table>
+    <div id="cartSummary">
+        <p>Итого: <span id="totalPrice">0</span> ₸</p>
+        <div id="deliverySection">
+            <label for="deliveryMethod">Способ доставки:</label>
+            <select id="deliveryMethod">
+                <option value="">-- выберите --</option>
+                <option value="pickup">Самовывоз</option>
+                <option value="courier">Курьер</option>
+                <option value="postal">Почта</option>
+            </select>
+            <div id="deliveryAddressContainer" style="display:none; margin-top:8px;">
+                <input type="text" id="deliveryAddress" placeholder="Укажите адрес" style="width:100%;" />
+            </div>
+        </div>
+        <button id="checkoutBtn">Оформить заказ</button>
+    </div>
+</section>
+
+<script>
+let cart = JSON.parse(localStorage.getItem("cart")) || [];
+const cartContainer = document.getElementById("cartContainer");
+const totalPriceEl = document.getElementById("totalPrice");
+
+function renderCart() {
+    cartContainer.innerHTML = "";
+    let total = 0;
+
+    if (cart.length === 0) {
+        cartContainer.innerHTML = '<tr><td colspan="5" style="padding:20px; text-align:center;">Ваша корзина пуста</td></tr>';
+    } else {
+        cart.forEach((item, index) => {
+            const qty = item.quantity || 1;
+            total += item.price * qty;
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="product-info">
+                    <img src="http://localhost:3000/uploads/${item.image}" alt="${item.title}" class="cart-img" />
+                    <span>${item.title}</span>
+                </td>
+                <td>${item.price} ₸</td>
+                <td class="quantity">
+                    <div class="quantity-controls">
+                        <button onclick="changeQty(${index}, -1)">-</button>
+                        <input type="number" value="${qty}" min="1" onchange="setQty(${index}, this.value)" />
+                        <button onclick="changeQty(${index}, 1)">+</button>
+                    </div>
+                </td>
+                <td>${item.price * qty} ₸</td>
+                <td><button onclick="removeFromCart(${index})" class="remove-btn">×</button></td>
+            `;
+            cartContainer.appendChild(tr);
+        });
+    }
+
+    totalPriceEl.innerText = total;
+    updateCartCount();
+}
+
+function removeFromCart(index) {
+    cart.splice(index, 1);
+    saveCart();
+    renderCart();
+}
+
+function changeQty(index, delta) {
+    const item = cart[index];
+    const newQty = (item.quantity || 1) + delta;
+    if (newQty < 1) return;
+    item.quantity = newQty;
+    saveCart();
+    renderCart();
+}
+
+function setQty(index, value) {
+    const qty = parseInt(value, 10);
+    if (isNaN(qty) || qty < 1) return;
+    cart[index].quantity = qty;
+    saveCart();
+    renderCart();
+}
+
+function saveCart() {
+    localStorage.setItem("cart", JSON.stringify(cart));
+}
+
+function updateCartCount() {
+    const totalQty = cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
+    const cartBtnCount = document.getElementById("cartCount");
+    if (cartBtnCount) cartBtnCount.innerText = totalQty;
+}
+
+//checkout logic remains
+
+document.getElementById("checkoutBtn").onclick = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return alert("Сначала войдите в аккаунт!");
+
+    if (cart.length === 0) return alert("Корзина пуста!");
+
+    const method = document.getElementById('deliveryMethod').value;
+    const address = document.getElementById('deliveryAddress').value;
+    if (!method) return alert('Выберите способ доставки!');
+
+    try {
+        const res = await fetch("http://localhost:3000/checkout", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + token
+            },
+            body: JSON.stringify({ cart, delivery: { method, address } })
+        });
+
+        const data = await res.json();
+        if (data.error) return alert(data.error);
+
+        alert("Заказ оформлен! Сумма: " + data.total + " ₸");
+        cart = [];
+        saveCart();
+        renderCart();
+    } catch (err) {
+        console.error(err);
+        alert("Ошибка при оформлении заказа");
+    }
+};
+
+// переключение поля адреса доставки
+const deliveryMethodSelect = document.getElementById('deliveryMethod');
+deliveryMethodSelect.addEventListener('change', () => {
+    const container = document.getElementById('deliveryAddressContainer');
+    const method = deliveryMethodSelect.value;
+    if (method === 'courier' || method === 'postal') {
+        container.style.display = 'block';
+    } else {
+        container.style.display = 'none';
+    }
+});
+
+renderCart();
+</script>
+
+</body>
+</html>

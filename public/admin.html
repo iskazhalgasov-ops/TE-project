@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Panel - LavandaBloom</title>
+    <link rel="stylesheet" href="admin.css"> </head>
+<body>
+    <h1>Админка товаров</h1>
+    <form id="addForm">
+        <input type="text" name="title" placeholder="Название" required>
+        <input type="text" name="description" placeholder="Описание" required>
+        <input type="number" name="price" placeholder="Цена" step="0.01" required>
+        <input type="file" name="image" accept="image/*" required>
+        <button type="submit">Добавить товар</button>
+    </form>
+
+    <h2>Список товаров</h2>
+    <div id="productsContainer"></div>
+
+    <script>
+        const container = document.getElementById('productsContainer');
+        const form = document.getElementById('addForm');
+        const API_URL = 'http://localhost:3000';
+
+        async function fetchProducts() {
+            const res = await fetch(`${API_URL}/products`);
+            const data = await res.json();
+            container.innerHTML = '';
+            data.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'product-item';
+                div.innerHTML = `
+                    <img src="${API_URL}/uploads/${item.image_url}" width="80">
+                    <div>
+                        <h3>${item.title}</h3>
+                        <p>${item.price} ₸</p>
+                        <button onclick="deleteProduct(${item.id})">Удалить</button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        form.addEventListener('submit', async e => {
+            e.preventDefault();
+            const data = new FormData(form);
+            const res = await fetch(`${API_URL}/add-product`, { method: 'POST', body: data });
+            if (res.ok) {
+                form.reset();
+                fetchProducts();
+            } else {
+                alert('Ошибка при добавлении');
+            }
+        });
+
+        async function deleteProduct(id) {
+            if (confirm('Удалить товар?')) {
+                await fetch(`${API_URL}/delete-product/${id}`, { method: 'DELETE' });
+                fetchProducts();
+            }
+        }
+
+        fetchProducts();
+    </script>
+</body>
+</html>
