@@ -3,9 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <title>Admin Panel - LavandaBloom</title>
-    <link rel="stylesheet" href="admin.css"> </head>
+    <link rel="stylesheet" href="admin.css">
+    <style>
+        .report-section {
+            max-width: 400px;
+            margin: 30px auto;
+            text-align: center;
+        }
+
+        .report-section h2 {
+            color: #6a1b9a;
+            margin-bottom: 15px;
+        }
+
+        .report-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, #8e24aa, #6a1b9a);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(142, 36, 170, 0.35);
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-decoration: none;
+        }
+
+        .report-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(142, 36, 170, 0.45);
+        }
+
+        .report-btn svg {
+            width: 22px;
+            height: 22px;
+            flex-shrink: 0;
+        }
+
+        .report-hint {
+            margin-top: 10px;
+            font-size: 13px;
+            color: #9c27b0;
+        }
+
+        hr.divider {
+            border: none;
+            border-top: 2px solid #e1bee7;
+            margin: 30px auto;
+            max-width: 500px;
+        }
+    </style>
+</head>
 <body>
     <h1>Админка товаров</h1>
+
+    <!-- ======= КНОПКА ФИНАНСОВОГО ОТЧЁТА ======= -->
+    <div class="report-section">
+        <h2>📊 Финансовый отчёт</h2>
+        <button class="report-btn" onclick="downloadReport()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Скачать отчёт Excel
+        </button>
+        <p class="report-hint">Продажи по товарам · Заказы по дням · Доставка · Топ покупатели</p>
+    </div>
+
+    <hr class="divider">
+
+    <!-- ======= ФОРМА ДОБАВЛЕНИЯ ТОВАРА ======= -->
     <form id="addForm">
         <input type="text" name="title" placeholder="Название" required>
         <input type="text" name="description" placeholder="Описание" required>
@@ -22,6 +94,42 @@
         const form = document.getElementById('addForm');
         const API_URL = 'http://localhost:3000';
 
+        // ---- Скачать финансовый отчёт ----
+        function downloadReport() {
+            const btn = document.querySelector('.report-btn');
+            btn.textContent = '⏳ Формируется...';
+            btn.disabled = true;
+
+            fetch(`${API_URL}/financial-report`)
+                .then(res => {
+                    if (!res.ok) throw new Error('Ошибка сервера');
+                    return res.blob();
+                })
+                .then(blob => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    const today = new Date().toISOString().slice(0, 10);
+                    a.href = url;
+                    a.download = `LavandaBloom_report_${today}.xlsx`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                })
+                .catch(err => {
+                    alert('Не удалось сформировать отчёт: ' + err.message);
+                })
+                .finally(() => {
+                    btn.innerHTML = `
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Скачать отчёт Excel`;
+                    btn.disabled = false;
+                });
+        }
+
+        // ---- Товары ----
         async function fetchProducts() {
             const res = await fetch(`${API_URL}/products`);
             const data = await res.json();
