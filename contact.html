@@ -7,8 +7,7 @@
   <title>Байланыс | LavandaBloom</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Montserrat:wght@400;600;700&display=swap"
-    rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet" />
 </head>
 
 <body>
@@ -18,12 +17,17 @@
       <li><a href="index.html">Басты бет</a></li>
       <li><a href="about.html">Біз туралы</a></li>
       <li><a href="index.html#catalog">Каталог</a></li>
-      <li><a href="gallery.html">Галерея</a></li>
-      <li><a href="contact.html">Байланыс</a></li>
+      <li><a href="contact.html" class="active">Байланыс</a></li>
+      <li id="authArea"><a href="login.html">Кіру</a></li>
+      <li>
+        <a href="card.html">
+          <i class="fas fa-shopping-cart"></i>
+          <span id="cartCount">0</span>
+        </a>
+      </li>
     </ul>
   </nav>
 
-  <!-- Байланыс бөлімі -->
   <section class="contact-section">
     <div class="contact-container">
       <h2>Бізбен байланысыңыз</h2>
@@ -45,27 +49,21 @@
     </div>
   </section>
 
-  <!-- Футер -->
   <footer class="footer">
     <div class="footer-container">
       <div class="footer-brand">
         <h3>LavandaBloom</h3>
         <p>Гүлдердің нәзіктігі мен сұлулығы – бізбен бірге.</p>
-
-
       </div>
-
       <div class="footer-links">
         <h4>Беттер</h4>
         <ul>
           <li><a href="index.html">Басты бет</a></li>
           <li><a href="about.html">Біз туралы</a></li>
           <li><a href="index.html#catalog">Каталог</a></li>
-          <li><a href="gallery.html">Галерея</a></li>
           <li><a href="contact.html">Байланыс</a></li>
         </ul>
       </div>
-
       <div class="footer-contact">
         <h4>Байланыс</h4>
         <p>Тел: +7 (777) 777-77-77</p>
@@ -79,12 +77,45 @@
         </div>
       </div>
     </div>
-
     <div class="footer-bottom">
       <p>© 2025 LavandaBloom. Барлық құқықтар қорғалған.</p>
     </div>
   </footer>
 
+  <script>
+  function parseJwt(token) {
+    try {
+      return JSON.parse(decodeURIComponent(
+        Array.prototype.map.call(atob(token.split('.')[1]), c =>
+          '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')
+      ));
+    } catch(e) { return null; }
+  }
+  const token = localStorage.getItem('token');
+  const authArea = document.getElementById('authArea');
+  const cart = JSON.parse(localStorage.getItem('cart')) || [];
+  document.getElementById('cartCount').innerText = cart.reduce((s, i) => s + (i.quantity||1), 0);
+
+  if (token) {
+    const user = parseJwt(token);
+    if (user) {
+      authArea.innerHTML = `
+        <div style="position:relative;">
+          <a href="#" id="userBtn">${user.name}</a>
+          <div id="dropdown" style="display:none;position:absolute;right:0;background:white;
+            box-shadow:0 5px 20px rgba(0,0,0,.1);border-radius:10px;padding:10px;z-index:100;">
+            <button onclick="logout()" style="background:#8e24aa;color:white;border:none;
+              padding:8px 15px;border-radius:8px;cursor:pointer;">Выйти</button>
+          </div>
+        </div>`;
+      document.getElementById('userBtn').onclick = () => {
+        const d = document.getElementById('dropdown');
+        d.style.display = d.style.display === 'block' ? 'none' : 'block';
+      };
+    }
+  }
+  function logout() { localStorage.removeItem('token'); location.reload(); }
+  </script>
 </body>
 
 </html>

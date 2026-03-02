@@ -6,6 +6,58 @@
     <title>LavandaBloom | Корзина</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Montserrat:wght@400;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        #deliverySection { margin: 16px 0; text-align: left; }
+        #deliverySection label { display:block; color:#4a148c; font-weight:600; margin-bottom:8px; font-size:14px; }
+        #deliveryMethod {
+            padding:10px 14px; border:1px solid #d1c4e9; border-radius:10px;
+            font-family:'Montserrat',sans-serif; font-size:14px; color:#4a148c;
+            outline:none; width:100%; box-sizing:border-box; cursor:pointer; transition:border-color .3s;
+        }
+        #deliveryMethod:focus { border-color:#8e24aa; }
+
+        #courierBlock {
+            display:none; margin-top:16px; background:#fdf8ff;
+            border-radius:14px; padding:16px; border:1px solid #e1bee7;
+        }
+        #courierBlock .block-title { font-size:14px; font-weight:600; color:#6a1b9a; margin-bottom:12px; }
+
+        #map { width:100%; height:320px; border-radius:10px; border:1px solid #d1c4e9; margin-bottom:12px; z-index:1; }
+        #mapHint { font-size:12px; color:#9c27b0; margin-bottom:10px; text-align:center; }
+
+        #selectedAddress {
+            background:white; border:1px solid #ce93d8; border-radius:10px;
+            padding:10px 14px; font-size:13px; color:#4a148c;
+            min-height:38px; display:flex; align-items:center; gap:8px;
+        }
+        #selectedAddress .addr-icon { color:#8e24aa; flex-shrink:0; }
+        #selectedAddress .no-addr { color:#aaa; font-style:italic; }
+
+        .addr-search-wrap { position:relative; margin-bottom:10px; }
+        #addrSearch {
+            width:100%; padding:10px 36px 10px 14px; border:1px solid #d1c4e9; border-radius:10px;
+            font-family:'Montserrat',sans-serif; font-size:13px; color:#4a148c;
+            outline:none; box-sizing:border-box; transition:border-color .3s;
+        }
+        #addrSearch:focus { border-color:#8e24aa; }
+        #addrSearchBtn {
+            position:absolute; right:8px; top:50%; transform:translateY(-50%);
+            background:none; border:none; color:#8e24aa; cursor:pointer; padding:4px; font-size:16px;
+        }
+        #addrResults {
+            background:white; border:1px solid #e1bee7; border-radius:10px;
+            max-height:150px; overflow-y:auto; display:none; margin-bottom:8px;
+            box-shadow:0 4px 12px rgba(142,36,170,.1);
+        }
+        .addr-result-item {
+            padding:10px 14px; font-size:13px; cursor:pointer;
+            color:#4a148c; border-bottom:1px solid #f3e5f5; transition:background .2s;
+        }
+        .addr-result-item:hover { background:#f3e5f5; }
+        .addr-result-item:last-child { border-bottom:none; }
+    </style>
 </head>
 <body>
 
@@ -15,7 +67,13 @@
         <li><a href="index.html#catalog">Каталог</a></li>
         <li><a href="about.html">Біз туралы</a></li>
         <li><a href="contact.html">Байланыс</a></li>
-        <li><a href="index.html">Кіру / Профиль</a></li>
+        <li id="authArea"><a href="login.html">Кіру</a></li>
+        <li>
+            <a href="card.html">
+                <i class="fas fa-shopping-cart"></i>
+                <span id="cartCount">0</span>
+            </a>
+        </li>
     </ul>
 </nav>
 
@@ -24,155 +82,270 @@
     <table class="cart-table">
         <thead>
             <tr>
-                <th>Товар</th>
-                <th>Цена</th>
-                <th>Количество</th>
-                <th>Сумма</th>
-                <th></th>
+                <th>Товар</th><th>Цена</th><th>Количество</th><th>Сумма</th><th></th>
             </tr>
         </thead>
-        <tbody id="cartContainer">
-            <!-- строки товаров добавляются скриптом -->
-        </tbody>
+        <tbody id="cartContainer"></tbody>
     </table>
+
     <div id="cartSummary">
         <p>Итого: <span id="totalPrice">0</span> ₸</p>
+
         <div id="deliverySection">
             <label for="deliveryMethod">Способ доставки:</label>
             <select id="deliveryMethod">
                 <option value="">-- выберите --</option>
                 <option value="pickup">Самовывоз</option>
-                <option value="courier">Курьер</option>
-                <option value="postal">Почта</option>
+                <option value="courier">Курьер (адрес на карте)</option>
             </select>
-            <div id="deliveryAddressContainer" style="display:none; margin-top:8px;">
-                <input type="text" id="deliveryAddress" placeholder="Укажите адрес" style="width:100%;" />
+
+            <div id="courierBlock">
+                <p class="block-title"><i class="fas fa-map-marker-alt"></i> Укажите адрес доставки</p>
+                <div class="addr-search-wrap">
+                    <input type="text" id="addrSearch" placeholder="Поиск адреса в Алматы..." />
+                    <button id="addrSearchBtn" type="button"><i class="fas fa-search"></i></button>
+                </div>
+                <div id="addrResults"></div>
+                <p id="mapHint">Или кликните на карте, чтобы указать точку доставки</p>
+                <div id="map"></div>
+                <div id="selectedAddress">
+                    <i class="fas fa-map-pin addr-icon"></i>
+                    <span class="no-addr">Адрес не выбран</span>
+                </div>
             </div>
         </div>
+
         <button id="checkoutBtn">Оформить заказ</button>
     </div>
 </section>
 
+<footer class="footer">
+    <div class="footer-container">
+        <div class="footer-brand">
+            <h3>LavandaBloom</h3>
+            <p>Гүлдердің нәзіктігі мен сұлулығы – бізбен бірге.</p>
+        </div>
+        <div class="footer-links">
+            <h4>Беттер</h4>
+            <ul>
+                <li><a href="index.html">Басты бет</a></li>
+                <li><a href="about.html">Біз туралы</a></li>
+                <li><a href="index.html#catalog">Каталог</a></li>
+                <li><a href="contact.html">Байланыс</a></li>
+            </ul>
+        </div>
+        <div class="footer-contact">
+            <h4>Байланыс</h4>
+            <p>Тел: +7 (777) 777-77-77</p>
+            <p>Email: info@lavandabloom.kz</p>
+            <p>Мекенжай: Алматы, Қазақстан</p>
+            <div class="footer-social">
+                <a href="#"><i class="fab fa-instagram"></i></a>
+                <a href="#"><i class="fab fa-facebook-f"></i></a>
+                <a href="#"><i class="fab fa-tiktok"></i></a>
+                <a href="#"><i class="fab fa-whatsapp"></i></a>
+            </div>
+        </div>
+    </div>
+    <div class="footer-bottom">
+        <p>© 2025 LavandaBloom. Барлық құқықтар қорғалған.</p>
+    </div>
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-let cart = JSON.parse(localStorage.getItem("cart")) || [];
-const cartContainer = document.getElementById("cartContainer");
-const totalPriceEl = document.getElementById("totalPrice");
+/* AUTH */
+function parseJwt(token) {
+    try {
+        return JSON.parse(decodeURIComponent(
+            Array.prototype.map.call(atob(token.split('.')[1]), c =>
+                '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')
+        ));
+    } catch(e) { return null; }
+}
+
+const token = localStorage.getItem('token');
+const authArea = document.getElementById('authArea');
+if (token) {
+    const user = parseJwt(token);
+    if (user) {
+        authArea.innerHTML = `
+            <div style="position:relative;">
+                <a href="#" id="userBtn">${user.name}</a>
+                <div id="dropdown" style="display:none;position:absolute;right:0;background:white;
+                    box-shadow:0 5px 20px rgba(0,0,0,.1);border-radius:10px;padding:10px;z-index:1000;">
+                    <button onclick="logout()" style="background:#8e24aa;color:white;border:none;
+                        padding:8px 15px;border-radius:8px;cursor:pointer;">Выйти</button>
+                </div>
+            </div>`;
+        document.getElementById('userBtn').onclick = () => {
+            const d = document.getElementById('dropdown');
+            d.style.display = d.style.display === 'block' ? 'none' : 'block';
+        };
+    }
+}
+function logout() { localStorage.removeItem('token'); location.href = 'index.html'; }
+
+/* КОРЗИНА */
+let cart = JSON.parse(localStorage.getItem('cart')) || [];
 
 function renderCart() {
-    cartContainer.innerHTML = "";
+    const container = document.getElementById('cartContainer');
+    container.innerHTML = '';
     let total = 0;
-
-    if (cart.length === 0) {
-        cartContainer.innerHTML = '<tr><td colspan="5" style="padding:20px; text-align:center;">Ваша корзина пуста</td></tr>';
+    if (!cart.length) {
+        container.innerHTML = '<tr><td colspan="5" style="padding:20px;text-align:center;color:#9c27b0;">Ваша корзина пуста</td></tr>';
     } else {
-        cart.forEach((item, index) => {
+        cart.forEach((item, i) => {
             const qty = item.quantity || 1;
             total += item.price * qty;
-
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td class="product-info">
-                    <img src="http://localhost:3000/uploads/${item.image}" alt="${item.title}" class="cart-img" />
-                    <span>${item.title}</span>
-                </td>
+                <td><img src="http://localhost:3000/uploads/${item.image}" alt="${item.title}" class="cart-img" />${item.title}</td>
                 <td>${item.price} ₸</td>
-                <td class="quantity">
-                    <div class="quantity-controls">
-                        <button onclick="changeQty(${index}, -1)">-</button>
-                        <input type="number" value="${qty}" min="1" onchange="setQty(${index}, this.value)" />
-                        <button onclick="changeQty(${index}, 1)">+</button>
-                    </div>
-                </td>
+                <td><div class="quantity-controls">
+                    <button onclick="changeQty(${i},-1)">-</button>
+                    <input type="number" value="${qty}" min="1" onchange="setQty(${i},this.value)"/>
+                    <button onclick="changeQty(${i},1)">+</button>
+                </div></td>
                 <td>${item.price * qty} ₸</td>
-                <td><button onclick="removeFromCart(${index})" class="remove-btn">×</button></td>
-            `;
-            cartContainer.appendChild(tr);
+                <td><button onclick="removeFromCart(${i})" class="remove-btn">×</button></td>`;
+            container.appendChild(tr);
         });
     }
-
-    totalPriceEl.innerText = total;
-    updateCartCount();
+    document.getElementById('totalPrice').innerText = total;
+    const el = document.getElementById('cartCount');
+    if (el) el.innerText = cart.reduce((s, i) => s + (i.quantity||1), 0);
 }
 
-function removeFromCart(index) {
-    cart.splice(index, 1);
-    saveCart();
-    renderCart();
-}
+function removeFromCart(i) { cart.splice(i,1); save(); renderCart(); }
+function changeQty(i, d) { const q=(cart[i].quantity||1)+d; if(q<1)return; cart[i].quantity=q; save(); renderCart(); }
+function setQty(i, v) { const q=parseInt(v,10); if(isNaN(q)||q<1)return; cart[i].quantity=q; save(); renderCart(); }
+function save() { localStorage.setItem('cart', JSON.stringify(cart)); }
 
-function changeQty(index, delta) {
-    const item = cart[index];
-    const newQty = (item.quantity || 1) + delta;
-    if (newQty < 1) return;
-    item.quantity = newQty;
-    saveCart();
-    renderCart();
-}
+/* КАРТА */
+let map = null, leafletMarker = null, selectedAddress = '', selectedLat = null, selectedLng = null;
 
-function setQty(index, value) {
-    const qty = parseInt(value, 10);
-    if (isNaN(qty) || qty < 1) return;
-    cart[index].quantity = qty;
-    saveCart();
-    renderCart();
-}
-
-function saveCart() {
-    localStorage.setItem("cart", JSON.stringify(cart));
-}
-
-function updateCartCount() {
-    const totalQty = cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
-    const cartBtnCount = document.getElementById("cartCount");
-    if (cartBtnCount) cartBtnCount.innerText = totalQty;
-}
-
-//checkout logic remains
-
-document.getElementById("checkoutBtn").onclick = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) return alert("Сначала войдите в аккаунт!");
-
-    if (cart.length === 0) return alert("Корзина пуста!");
-
-    const method = document.getElementById('deliveryMethod').value;
-    const address = document.getElementById('deliveryAddress').value;
-    if (!method) return alert('Выберите способ доставки!');
-
-    try {
-        const res = await fetch("http://localhost:3000/checkout", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": "Bearer " + token
-            },
-            body: JSON.stringify({ cart, delivery: { method, address } })
-        });
-
-        const data = await res.json();
-        if (data.error) return alert(data.error);
-
-        alert("Заказ оформлен! Сумма: " + data.total + " ₸");
-        cart = [];
-        saveCart();
-        renderCart();
-    } catch (err) {
-        console.error(err);
-        alert("Ошибка при оформлении заказа");
-    }
-};
-
-// переключение поля адреса доставки
-const deliveryMethodSelect = document.getElementById('deliveryMethod');
-deliveryMethodSelect.addEventListener('change', () => {
-    const container = document.getElementById('deliveryAddressContainer');
-    const method = deliveryMethodSelect.value;
-    if (method === 'courier' || method === 'postal') {
-        container.style.display = 'block';
+document.getElementById('deliveryMethod').addEventListener('change', function() {
+    const block = document.getElementById('courierBlock');
+    if (this.value === 'courier') {
+        block.style.display = 'block';
+        if (!map) setTimeout(initMap, 100);
     } else {
-        container.style.display = 'none';
+        block.style.display = 'none';
+        selectedAddress = ''; selectedLat = null; selectedLng = null;
     }
 });
+
+function initMap() {
+    map = L.map('map').setView([43.238949, 76.889709], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap', maxZoom: 19
+    }).addTo(map);
+
+    map.on('click', async e => {
+        placeMarker(e.latlng.lat, e.latlng.lng);
+        await reverseGeocode(e.latlng.lat, e.latlng.lng);
+    });
+}
+
+function makeIcon() {
+    return L.divIcon({
+        html: `<div style="width:28px;height:28px;background:#8e24aa;border-radius:50% 50% 50% 0;
+            transform:rotate(-45deg);border:3px solid white;
+            box-shadow:0 3px 10px rgba(142,36,170,.5);"></div>`,
+        iconSize:[28,28], iconAnchor:[14,28], className:''
+    });
+}
+
+function placeMarker(lat, lng) {
+    if (leafletMarker) map.removeLayer(leafletMarker);
+    leafletMarker = L.marker([lat, lng], { icon: makeIcon() }).addTo(map);
+    selectedLat = lat; selectedLng = lng;
+}
+
+async function reverseGeocode(lat, lng) {
+    try {
+        const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=ru`);
+        const d = await r.json();
+        setAddr(d.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+    } catch { setAddr(`${lat.toFixed(5)}, ${lng.toFixed(5)}`); }
+}
+
+function setAddr(addr) {
+    selectedAddress = addr;
+    document.getElementById('selectedAddress').innerHTML =
+        `<i class="fas fa-map-pin addr-icon"></i><span>${addr}</span>`;
+}
+
+/* ПОИСК АДРЕСА */
+let searchTimer;
+document.getElementById('addrSearch').addEventListener('input', function() {
+    clearTimeout(searchTimer);
+    const q = this.value.trim();
+    if (q.length < 3) { document.getElementById('addrResults').style.display='none'; return; }
+    searchTimer = setTimeout(() => geocodeSearch(q), 450);
+});
+document.getElementById('addrSearchBtn').addEventListener('click', () => {
+    const q = document.getElementById('addrSearch').value.trim();
+    if (q.length >= 3) geocodeSearch(q);
+});
+
+async function geocodeSearch(query) {
+    try {
+        const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query+' Алматы')}&format=json&limit=5&accept-language=ru`);
+        const results = await r.json();
+        const box = document.getElementById('addrResults');
+        if (!results.length) { box.style.display='none'; return; }
+        box.innerHTML = '';
+        results.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'addr-result-item';
+            div.textContent = item.display_name;
+            div.onclick = () => {
+                const lat = parseFloat(item.lat), lng = parseFloat(item.lon);
+                placeMarker(lat, lng);
+                map.setView([lat, lng], 16);
+                setAddr(item.display_name);
+                document.getElementById('addrSearch').value = item.display_name;
+                box.style.display = 'none';
+            };
+            box.appendChild(div);
+        });
+        box.style.display = 'block';
+    } catch {}
+}
+
+document.addEventListener('click', e => {
+    if (!e.target.closest('.addr-search-wrap') && !e.target.closest('#addrResults'))
+        document.getElementById('addrResults').style.display = 'none';
+});
+
+/* ОФОРМИТЬ ЗАКАЗ */
+document.getElementById('checkoutBtn').onclick = async () => {
+    if (!token) return alert('Сначала войдите в аккаунт!');
+    if (!cart.length) return alert('Корзина пуста!');
+    const method = document.getElementById('deliveryMethod').value;
+    if (!method) return alert('Выберите способ доставки!');
+    if (method === 'courier' && !selectedAddress) return alert('Укажите адрес доставки на карте!');
+
+    try {
+        const res = await fetch('http://localhost:3000/checkout', {
+            method: 'POST',
+            headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+token },
+            body: JSON.stringify({ cart, delivery: { method, address: selectedAddress || null } })
+        });
+        const data = await res.json();
+        if (data.error) return alert(data.error);
+        alert(`Заказ оформлен! Сумма: ${data.total} ₸${selectedAddress ? '\nАдрес: ' + selectedAddress : ''}`);
+        cart = []; save(); renderCart();
+        document.getElementById('deliveryMethod').value = '';
+        document.getElementById('courierBlock').style.display = 'none';
+        selectedAddress = '';
+        document.getElementById('selectedAddress').innerHTML =
+            `<i class="fas fa-map-pin addr-icon"></i><span class="no-addr">Адрес не выбран</span>`;
+    } catch { alert('Ошибка при оформлении заказа'); }
+};
 
 renderCart();
 </script>
