@@ -184,63 +184,6 @@ app.post("/login", (req, res) => {
   });
 });
 
-// ── CHECKOUT ──────────────────────────────────────────────────────────────
-app.post("/checkout", async (req, res) => {
-  const token = req.headers.authorization?.split(" ")[1];
-  if (!token) return res.status(401).json({ error: "Не авторизован" });
-  try {
-    const decoded = jwt.verify(token, SECRET_KEY);
-    const { cart: cartItems, delivery } = req.body;
-    if (!cartItems?.length) return res.status(400).json({ error: "Корзина пуста" });
-    if (!delivery?.method) return res.status(400).json({ error: "Выберите способ доставки" });
-
-    let productsTotal = 0;
-    for (const item of cartItems) {
-      productsTotal += item.price * (item.quantity || 1);
-      await new Promise((resolve, reject) => {
-        db.query(
-          "INSERT INTO cart_items (user_id, product_id, quantity) VALUES (?, ?, ?)",
-          [decoded.id, item.id, item.quantity || 1],
-          err => err ? reject(err) : resolve()
-        );
-      });
-    }
-
-    // Считаем цену доставки по координатам (переданным с фронта)
-    let deliveryPrice = 0;
-    if (delivery.method === "courier") {
-      if (delivery.lat != null && delivery.lng != null) {
-        const dist = haversineKm(WAREHOUSE_LAT, WAREHOUSE_LNG, parseFloat(delivery.lat), parseFloat(delivery.lng));
-        deliveryPrice = calcDeliveryPrice(dist);
-      } else if (delivery.deliveryPrice) {
-        deliveryPrice = Number(delivery.deliveryPrice);
-      }
-    }
-
-    const grandTotal = productsTotal + deliveryPrice;
-
-    db.query(
-      "INSERT INTO orders (user_id, total_price, delivery_method, delivery_address, delivery_price) VALUES (?, ?, ?, ?, ?)",
-      [decoded.id, grandTotal, delivery.method, delivery.address || null, deliveryPrice],
-      (err) => {
-        if (err) {
-          // Fallback если колонки delivery_price нет
-          db.query(
-            "INSERT INTO orders (user_id, total_price, delivery_method, delivery_address) VALUES (?, ?, ?, ?)",
-            [decoded.id, grandTotal, delivery.method, delivery.address || null],
-            (err2) => {
-              if (err2) return res.status(500).json({ error: err2 });
-              res.json({ message: "Заказ оформлен", total: grandTotal, deliveryPrice });
-            }
-          );
-          return;
-        }
-        res.json({ message: "Заказ оформлен", total: grandTotal, deliveryPrice });
-      }
-    );
-  } catch { res.status(401).json({ error: "Неверный токен" }); }
-});
-
 // ── ФИНАНСОВЫЙ ОТЧЁТ ──────────────────────────────────────────────────────
 app.get("/financial-report", async (req, res) => {
   const q = (sql, params = []) =>
@@ -1087,6 +1030,223 @@ app.get("/warehouse-report", async (req, res) => {
     console.error("Ошибка складского отчёта:", err);
     res.status(500).json({ error: err.message });
   }
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+//  ВСТАВЬ ЭТО В server.js ПЕРЕД строкой app.listen(PORT, ...)
+//  Это новые эндпоинты для истории заказов и трекинга
+// ═══════════════════════════════════════════════════════════════════════
+
+// ── МОИ ЗАКАЗЫ ──────────────────────────────────────────────────────────
+app.get("/my-orders", (req, res) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "Не авторизован" });
+  try {
+    const decoded = jwt.verify(token, SECRET_KEY);
+
+    // Заказы
+    db.query(
+      `SELECT
+         o.id,
+         o.total_price,
+         o.delivery_method,
+         o.delivery_address,
+         COALESCE(o.delivery_price, 0)   AS delivery_price,
+         COALESCE(o.delivery_lat, NULL)  AS delivery_lat,
+         COALESCE(o.delivery_lng, NULL)  AS delivery_lng,
+         COALESCE(o.status, 'pending')   AS status,
+         COALESCE(o.courier_name, 'Азамат К.')          AS courier_name,
+         COALESCE(o.courier_phone, '+77015550101')       AS courier_phone,
+         o.created_at
+       FROM orders o
+       WHERE o.user_id = ?
+       ORDER BY o.created_at DESC`,
+      [decoded.id],
+      (err, orders) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!orders.length) return res.json([]);
+
+        // Товары пользователя (последние cart_items)
+        db.query(
+          `SELECT ci.id, ci.product_id, ci.quantity, ci.order_id,
+             p.title, p.price, p.image_url
+           FROM cart_items ci
+           JOIN products p ON p.id = ci.product_id
+           WHERE ci.user_id = ?
+           ORDER BY ci.id DESC`,
+          [decoded.id],
+          (err2, allItems) => {
+            if (err2) return res.json(orders.map(o => ({ ...o, items: [] })));
+
+            // Если есть order_id в cart_items — группируем по нему
+            const hasOrderId = allItems.some(i => i.order_id != null);
+
+            const result = orders.map(o => {
+              let items;
+              if (hasOrderId) {
+                items = allItems.filter(i => i.order_id === o.id);
+              } else {
+                // Fallback: показываем последние N товаров
+                items = allItems.slice(0, 5);
+              }
+              return { ...o, items };
+            });
+
+            res.json(result);
+          }
+        );
+      }
+    );
+  } catch { res.status(401).json({ error: "Неверный токен" }); }
+});
+
+// ── ОДИН ЗАКАЗ (для треккинга) ─────────────────────────────────────────
+app.get("/order/:id", (req, res) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "Не авторизован" });
+  try {
+    const decoded = jwt.verify(token, SECRET_KEY);
+    db.query(
+      `SELECT
+         o.id, o.user_id, o.total_price,
+         o.delivery_method, o.delivery_address,
+         COALESCE(o.delivery_price, 0)   AS delivery_price,
+         COALESCE(o.delivery_lat, NULL)  AS delivery_lat,
+         COALESCE(o.delivery_lng, NULL)  AS delivery_lng,
+         COALESCE(o.status, 'pending')   AS status,
+         COALESCE(o.courier_name, 'Азамат К.')          AS courier_name,
+         COALESCE(o.courier_phone, '+77015550101')       AS courier_phone,
+         o.created_at
+       FROM orders o WHERE o.id = ?`,
+      [req.params.id],
+      (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!rows[0]) return res.status(404).json({ error: "Заказ не найден" });
+        const order = rows[0];
+        if (order.user_id !== decoded.id && decoded.role !== "admin")
+          return res.status(403).json({ error: "Нет доступа" });
+        res.json(order);
+      }
+    );
+  } catch { res.status(401).json({ error: "Неверный токен" }); }
+});
+
+// ── ОТМЕТИТЬ ДОСТАВЛЕНО (вызывается из tracking.html) ──────────────────
+app.post("/order/:id/delivered", (req, res) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "Не авторизован" });
+  try {
+    const decoded = jwt.verify(token, SECRET_KEY);
+    db.query("SELECT user_id FROM orders WHERE id = ?", [req.params.id], (err, rows) => {
+      if (err || !rows[0]) return res.status(404).json({ error: "Не найден" });
+      if (rows[0].user_id !== decoded.id && decoded.role !== "admin")
+        return res.status(403).json({ error: "Нет доступа" });
+      db.query("UPDATE orders SET status = 'delivered' WHERE id = ?", [req.params.id], (e) => {
+        if (e) return res.status(500).json({ error: e.message });
+        res.json({ message: "Доставлено" });
+      });
+    });
+  } catch { res.status(401).json({ error: "Неверный токен" }); }
+});
+
+// ── СМЕНИТЬ СТАТУС (только admin) ──────────────────────────────────────
+app.post("/order/:id/status", (req, res) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "Не авторизован" });
+  try {
+    const decoded = jwt.verify(token, SECRET_KEY);
+    if (decoded.role !== "admin") return res.status(403).json({ error: "Только admin" });
+    const { status } = req.body;
+    if (!["pending","assembly","transit","delivered","cancelled"].includes(status))
+      return res.status(400).json({ error: "Неверный статус" });
+    db.query("UPDATE orders SET status = ? WHERE id = ?", [status, req.params.id], (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ message: "Статус обновлён" });
+    });
+  } catch { res.status(401).json({ error: "Неверный токен" }); }
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+//  ЗАМЕНИ старый /checkout на этот (сохраняет координаты + status)
+// ═══════════════════════════════════════════════════════════════════════
+app.post("/checkout", async (req, res) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "Не авторизован" });
+  try {
+    const decoded = jwt.verify(token, SECRET_KEY);
+    const { cart: cartItems, delivery } = req.body;
+    if (!cartItems?.length) return res.status(400).json({ error: "Корзина пуста" });
+    if (!delivery?.method) return res.status(400).json({ error: "Выберите способ доставки" });
+
+    let productsTotal = 0;
+
+    // Сначала вставляем cart_items чтобы знать их id
+    const insertedItemIds = [];
+    for (const item of cartItems) {
+      productsTotal += item.price * (item.quantity || 1);
+      const ciId = await new Promise((resolve, reject) => {
+        db.query(
+          "INSERT INTO cart_items (user_id, product_id, quantity) VALUES (?, ?, ?)",
+          [decoded.id, item.id, item.quantity || 1],
+          (err, r) => err ? reject(err) : resolve(r.insertId)
+        );
+      });
+      insertedItemIds.push(ciId);
+    }
+
+    // Цена доставки
+    let deliveryPrice = 0;
+    if (delivery.method === "courier") {
+      if (delivery.lat != null && delivery.lng != null) {
+        const dist = haversineKm(WAREHOUSE_LAT, WAREHOUSE_LNG, parseFloat(delivery.lat), parseFloat(delivery.lng));
+        deliveryPrice = calcDeliveryPrice(dist);
+      } else if (delivery.deliveryPrice) {
+        deliveryPrice = Number(delivery.deliveryPrice);
+      }
+    }
+    const grandTotal    = productsTotal + deliveryPrice;
+    const initialStatus = delivery.method === "courier" ? "transit" : "pending";
+
+    // Вставляем заказ
+    db.query(
+      `INSERT INTO orders
+         (user_id, total_price, delivery_method, delivery_address,
+          delivery_price, delivery_lat, delivery_lng, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        decoded.id, grandTotal,
+        delivery.method, delivery.address || null,
+        deliveryPrice,
+        delivery.lat ? parseFloat(delivery.lat) : null,
+        delivery.lng ? parseFloat(delivery.lng) : null,
+        initialStatus
+      ],
+      (err, result) => {
+        if (err) {
+          // Если новых колонок ещё нет — fallback без них
+          db.query(
+            "INSERT INTO orders (user_id, total_price, delivery_method, delivery_address) VALUES (?, ?, ?, ?)",
+            [decoded.id, grandTotal, delivery.method, delivery.address || null],
+            (err2, r2) => {
+              if (err2) return res.status(500).json({ error: err2.message });
+              res.json({ message: "Заказ оформлен", total: grandTotal, deliveryPrice, orderId: r2.insertId });
+            }
+          );
+          return;
+        }
+        const orderId = result.insertId;
+        // Привязываем cart_items к order_id (если колонка есть)
+        if (insertedItemIds.length) {
+          db.query(
+            `UPDATE cart_items SET order_id = ? WHERE id IN (${insertedItemIds.map(()=>'?').join(',')})`,
+            [orderId, ...insertedItemIds],
+            () => {} // игнорируем ошибку если колонки нет
+          );
+        }
+        res.json({ message: "Заказ оформлен", total: grandTotal, deliveryPrice, orderId });
+      }
+    );
+  } catch (e) { res.status(401).json({ error: "Неверный токен" }); }
 });
 
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));

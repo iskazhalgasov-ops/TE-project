@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Курьер едет | LavandaBloom</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Great+Vibes&display=swap" rel="stylesheet"/>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background: #0a0a0f;
+            color: white;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* ── КАРТА ── */
+        #map {
+            flex: 1;
+            width: 100%;
+            z-index: 1;
+        }
+
+        /* Кастомный стиль тайлов — тёмная карта через CSS инверсия */
+        .leaflet-tile { filter: invert(1) hue-rotate(200deg) saturate(0.4) brightness(0.85); }
+
+        /* ── ШАПКА поверх карты ── */
+        .top-bar {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            z-index: 500;
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: linear-gradient(to bottom, rgba(10,10,15,.9) 0%, transparent 100%);
+        }
+        .back-circle {
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            background: rgba(255,255,255,.15);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,.2);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 16px;
+            text-decoration: none;
+            flex-shrink: 0;
+        }
+        .top-title { font-size: 16px; font-weight: 700; }
+        .top-order  { font-size: 12px; color: rgba(255,255,255,.6); margin-top: 2px; }
+
+        /* ── НИЖНЯЯ ПАНЕЛЬ (sliding card) ── */
+        .bottom-sheet {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            z-index: 500;
+            background: #13131a;
+            border-radius: 24px 24px 0 0;
+            padding: 8px 20px 24px;
+            box-shadow: 0 -8px 40px rgba(0,0,0,.6);
+        }
+
+        .drag-handle {
+            width: 40px; height: 4px;
+            background: rgba(255,255,255,.2);
+            border-radius: 2px;
+            margin: 0 auto 16px;
+        }
+
+        /* ETA главный блок */
+        .eta-block {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+        .eta-time {
+            font-size: 42px;
+            font-weight: 700;
+            color: white;
+            line-height: 1;
+        }
+        .eta-label {
+            font-size: 12px;
+            color: rgba(255,255,255,.5);
+            margin-top: 4px;
+        }
+        .eta-right { text-align: right; }
+        .eta-dist  { font-size: 22px; font-weight: 700; color: #ce93d8; }
+        .eta-dist-lbl { font-size: 12px; color: rgba(255,255,255,.5); margin-top: 4px; }
+
+        /* Прогресс-бар */
+        .progress-bar {
+            height: 6px;
+            background: rgba(255,255,255,.1);
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #8e24aa, #ce93d8);
+            border-radius: 6px;
+            transition: width .5s ease;
+        }
+
+        /* Курьер-карточка */
+        .courier-card {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background: rgba(255,255,255,.06);
+            border: 1px solid rgba(255,255,255,.08);
+            border-radius: 16px;
+            padding: 14px 16px;
+            margin-bottom: 14px;
+        }
+        .courier-ava {
+            width: 48px; height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #8e24aa, #4a148c);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+        .courier-txt { flex: 1; }
+        .courier-nm  { font-weight: 700; font-size: 15px; }
+        .courier-st  { font-size: 12px; color: rgba(255,255,255,.5); margin-top: 3px; }
+        .courier-st .dot { display:inline-block;width:6px;height:6px;background:#4caf50;border-radius:50%;margin-right:5px;animation:blink 1.2s ease infinite; }
+        @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+        .call-btn {
+            width: 44px; height: 44px;
+            border-radius: 50%;
+            background: #8e24aa;
+            border: none;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: background .2s;
+        }
+        .call-btn:hover { background: #6a1b9a; }
+
+        /* Адреса */
+        .route-row {
+            display: flex;
+            align-items: stretch;
+            gap: 12px;
+        }
+        .route-dots {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 3px;
+            gap: 0;
+        }
+        .dot-from { width:10px;height:10px;border-radius:50%;background:#8e24aa;flex-shrink:0; }
+        .dot-line  { width:2px;flex:1;background:rgba(255,255,255,.15);margin:3px 0; }
+        .dot-to   { width:10px;height:10px;border-radius:50%;background:#4caf50;flex-shrink:0; }
+
+        .route-addrs { flex: 1; display:flex;flex-direction:column;gap:6px; }
+        .route-addr  { display:flex;flex-direction:column;gap:2px; }
+        .addr-label  { font-size:11px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px; }
+        .addr-text   { font-size:13px;font-weight:600;color:rgba(255,255,255,.9);line-height:1.4; }
+
+        /* Доставлено */
+        .delivered-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(10,10,15,.85);
+            backdrop-filter: blur(8px);
+            z-index: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 14px;
+            padding: 30px;
+            text-align: center;
+        }
+        .delivered-icon { font-size: 80px; }
+        .delivered-overlay h2 { font-size: 28px; font-weight: 700; }
+        .delivered-overlay p  { color: rgba(255,255,255,.6); font-size: 14px; }
+        .delivered-overlay a  {
+            background: linear-gradient(135deg, #8e24aa, #6a1b9a);
+            color: white;
+            padding: 14px 32px;
+            border-radius: 24px;
+            text-decoration: none;
+            font-weight: 700;
+            margin-top: 8px;
+        }
+
+        /* Самовывоз */
+        .pickup-screen {
+            position: absolute;
+            inset: 0;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+        }
+        .pickup-info {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            background: #13131a;
+            border-radius: 24px 24px 0 0;
+            padding: 24px 20px;
+            z-index: 500;
+        }
+        .pickup-title  { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+        .pickup-addr   { color: rgba(255,255,255,.6); font-size: 14px; margin-bottom: 20px; }
+        .pickup-btn    {
+            display: block;
+            background: linear-gradient(135deg, #26a69a, #00796b);
+            color: white;
+            text-align: center;
+            padding: 14px;
+            border-radius: 16px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 15px;
+        }
+
+        /* Ошибка */
+        .err-screen {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            height: 100vh; gap: 16px; padding: 30px; text-align: center;
+            background: #0a0a0f;
+        }
+        .err-screen i { font-size: 60px; color: #ab47bc; }
+        .err-screen a { color: #ce93d8; font-weight: 700; }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div class="err-screen">
+        <i class="fas fa-spinner fa-spin"></i>
+        <p>Загрузка...</p>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const API    = 'http://localhost:3000';
+const WH_LAT = 51.1605, WH_LNG = 71.4704;
+
+/* ── AUTH ── */
+function jwt(t){try{return JSON.parse(decodeURIComponent(Array.prototype.map.call(atob(t.split('.')[1]),c=>'%'+('00'+c.charCodeAt(0).toString(16)).slice(-2)).join('')));}catch(e){return null;}}
+const token = localStorage.getItem('token');
+if (!token) location.href='login.html';
+
+const orderId = new URLSearchParams(location.search).get('orderId');
+
+/* ── UTILS ── */
+function haversine(a,b,c,d){const R=6371,r=x=>x*Math.PI/180,dLa=r(c-a),dLo=r(d-b),x=Math.sin(dLa/2)**2+Math.cos(r(a))*Math.cos(r(c))*Math.sin(dLo/2)**2;return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
+function lerp(a,b,t){return a+(b-a)*t;}
+function fmt(min){return min<=0?'0 мин':min===1?'~1 мин':`~${min} мин`;}
+
+/* ── ИКОНКИ LEAFLET ── */
+function icon(html,size=40){return L.divIcon({html,iconSize:[size,size],iconAnchor:[size/2,size/2],className:''});}
+
+const ICON_WAREHOUSE = icon(`<div style="width:40px;height:40px;background:#6a1b9a;border-radius:50%;border:3px solid #fff;box-shadow:0 3px 12px rgba(106,27,154,.7);display:flex;align-items:center;justify-content:center;font-size:18px;">🏪</div>`);
+const ICON_DEST      = icon(`<div style="width:40px;height:40px;background:#2e7d32;border-radius:50%;border:3px solid #fff;box-shadow:0 3px 12px rgba(46,125,50,.7);display:flex;align-items:center;justify-content:center;font-size:18px;">🏠</div>`);
+function ICON_COURIER(){return icon(`<div style="width:48px;height:48px;background:linear-gradient(135deg,#8e24aa,#4a148c);border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 6px rgba(142,36,170,.25);display:flex;align-items:center;justify-content:center;font-size:22px;">🛵</div>`,48);}
+
+/* ── ГЛАВНЫЙ ЗАПУСК ── */
+async function init(){
+    if(!orderId){ showErr('Не указан ID заказа'); return; }
+    let order;
+    try{
+        const r = await fetch(`${API}/order/${orderId}`,{headers:{'Authorization':'Bearer '+token}});
+        order = await r.json();
+        if(order.error) throw order.error;
+    } catch(e){ showErr(e); return; }
+
+    if(order.delivery_method==='pickup'){
+        renderPickup(order);
+    } else if(order.status==='delivered'){
+        renderDelivered();
+    } else {
+        renderTracker(order);
+    }
+}
+
+/* ── САМОВЫВОЗ ── */
+function renderPickup(order){
+    document.getElementById('app').innerHTML=`
+    <div class="pickup-screen">
+        <div id="pmap" style="flex:1;"></div>
+        <div class="pickup-info">
+            <div class="pickup-title">📦 Самовывоз</div>
+            <div class="pickup-addr">Астана, ул. Жиембет жырау 2<br><span style="font-size:12px;opacity:.5;">Пн–Вс 9:00–21:00</span></div>
+            <a href="https://maps.google.com?q=${WH_LAT},${WH_LNG}" target="_blank" class="pickup-btn">
+                <i class="fas fa-directions"></i> Построить маршрут
+            </a>
+        </div>
+        <a href="orders.html" style="position:absolute;top:16px;left:16px;z-index:600;width:40px;height:40px;background:rgba(255,255,255,.15);backdrop-filter:blur(8px);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;text-decoration:none;">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+    </div>`;
+    setTimeout(()=>{
+        const m = L.map('pmap').setView([WH_LAT,WH_LNG],15);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM',maxZoom:19}).addTo(m);
+        L.marker([WH_LAT,WH_LNG],{icon:ICON_WAREHOUSE}).addTo(m).bindPopup('<b>Склад LavandaBloom</b>').openPopup();
+    },50);
+}
+
+/* ── ДОСТАВЛЕНО ── */
+function renderDelivered(){
+    document.getElementById('app').innerHTML=`
+    <div class="err-screen">
+        <div style="font-size:80px;">✅</div>
+        <h2>Доставлено!</h2>
+        <p style="color:rgba(255,255,255,.5);">Ваш букет уже у вас 💜</p>
+        <a href="orders.html" style="background:linear-gradient(135deg,#8e24aa,#6a1b9a);color:white;padding:12px 28px;border-radius:24px;text-decoration:none;font-weight:700;margin-top:8px;">← Мои заказы</a>
+    </div>`;
+}
+
+/* ── ТРЕКЕР ── */
+async function renderTracker(order){
+    const destLat = parseFloat(order.delivery_lat);
+    const destLng = parseFloat(order.delivery_lng);
+    const hasCoords = !isNaN(destLat) && !isNaN(destLng);
+
+    const courierName  = order.courier_name  || 'Азамат К.';
+    const courierPhone = order.courier_phone || '+77015550101';
+
+    // Строим HTML страницы
+    document.getElementById('app').innerHTML=`
+    <div id="map"></div>
+
+    <div class="top-bar">
+        <a href="orders.html" class="back-circle"><i class="fas fa-arrow-left"></i></a>
+        <div>
+            <div class="top-title">Курьер едет к вам</div>
+            <div class="top-order">Заказ #${orderId}</div>
+        </div>
+    </div>
+
+    <div class="bottom-sheet">
+        <div class="drag-handle"></div>
+
+        <div class="eta-block">
+            <div>
+                <div class="eta-time" id="etaVal">—</div>
+                <div class="eta-label">время прибытия</div>
+            </div>
+            <div class="eta-right">
+                <div class="eta-dist" id="distVal">— км</div>
+                <div class="eta-dist-lbl">осталось</div>
+            </div>
+        </div>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progFill" style="width:0%"></div>
+        </div>
+
+        <div class="courier-card">
+            <div class="courier-ava">🛵</div>
+            <div class="courier-txt">
+                <div class="courier-nm">${courierName}</div>
+                <div class="courier-st"><span class="dot"></span>В пути · скорость <span id="speedVal">—</span></div>
+            </div>
+            <a href="tel:${courierPhone}" class="call-btn"><i class="fas fa-phone"></i></a>
+        </div>
+
+        <div class="route-row">
+            <div class="route-dots">
+                <div class="dot-from"></div>
+                <div class="dot-line"></div>
+                <div class="dot-to"></div>
+            </div>
+            <div class="route-addrs">
+                <div class="route-addr">
+                    <div class="addr-label">Откуда</div>
+                    <div class="addr-text">Астана, Жиембет жырау 2</div>
+                </div>
+                <div class="route-addr">
+                    <div class="addr-label">Куда</div>
+                    <div class="addr-text">${(order.delivery_address||'Адрес доставки').slice(0,70)}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="deliveredOverlay" style="display:none;" class="delivered-overlay">
+        <div class="delivered-icon">🎉</div>
+        <h2>Доставлено!</h2>
+        <p>Курьер привёз ваш букет.<br>Спасибо за заказ в LavandaBloom!</p>
+        <a href="orders.html">← Мои заказы</a>
+    </div>`;
+
+    if(!hasCoords){
+        document.getElementById('etaVal').textContent  = '?';
+        document.getElementById('distVal').textContent = '? км';
+        document.querySelector('.courier-st').innerHTML = '<span class="dot"></span>Координаты не заданы — курьер всё равно едет!';
+        // Рисуем просто карту со складом
+        const m = L.map('map').setView([WH_LAT,WH_LNG],14);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM',maxZoom:19}).addTo(m);
+        L.marker([WH_LAT,WH_LNG],{icon:ICON_WAREHOUSE}).addTo(m).bindPopup('Склад LavandaBloom').openPopup();
+        return;
+    }
+
+    await startTracking(destLat, destLng, orderId);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   ОСНОВНАЯ ЛОГИКА ТРЕКИНГА
+════════════════════════════════════════════════════════════════ */
+async function startTracking(destLat, destLng, oid){
+
+    // Инициализируем карту
+    const midLat = (WH_LAT+destLat)/2;
+    const midLng = (WH_LNG+destLng)/2;
+    const map = L.map('map',{zoomControl:false,attributionControl:false}).setView([midLat,midLng],13);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+
+    // Маркеры склада и цели
+    L.marker([WH_LAT,WH_LNG],{icon:ICON_WAREHOUSE}).addTo(map).bindPopup('Склад LavandaBloom');
+    L.marker([destLat,destLng],{icon:ICON_DEST}).addTo(map).bindPopup('Ваш адрес');
+
+    // Маркер курьера
+    const courierM = L.marker([WH_LAT,WH_LNG],{icon:ICON_COURIER(),zIndexOffset:1000}).addTo(map);
+
+    // Линия "уже пройдено" (зелёная)
+    const doneLine  = L.polyline([],{color:'#4caf50',weight:5,opacity:.9}).addTo(map);
+    // Линия "впереди" (фиолетовая пунктир)
+    const aheadLine = L.polyline([],{color:'#8e24aa',weight:4,opacity:.5,dashArray:'8 6'}).addTo(map);
+
+    // ── Запрашиваем маршрут у OSRM ──────────────────────────────────────
+    let routeCoords = null;
+    let totalDist   = haversine(WH_LAT,WH_LNG,destLat,destLng);
+    let totalSec    = (totalDist / 40) * 3600; // fallback ETA по скорости 40 км/ч
+
+    try{
+        const osrm = `https://router.project-osrm.org/route/v1/driving/${WH_LNG},${WH_LAT};${destLng},${destLat}?overview=full&geometries=geojson`;
+        const resp = await fetch(osrm);
+        const data = await resp.json();
+        if(data.code==='Ok' && data.routes[0]){
+            routeCoords = data.routes[0].geometry.coordinates.map(c=>[c[1],c[0]]);
+            totalDist   = data.routes[0].distance / 1000;
+            totalSec    = data.routes[0].duration;
+
+            // Рисуем весь маршрут сразу пунктиром (впереди)
+            aheadLine.setLatLngs(routeCoords);
+            map.fitBounds(L.polyline(routeCoords).getBounds(),{padding:[60,60]});
+        } else { throw 'no route'; }
+    } catch(e){
+        // Fallback — прямая линия
+        routeCoords = [[WH_LAT,WH_LNG],[destLat,destLng]];
+        aheadLine.setLatLngs(routeCoords);
+        map.fitBounds(aheadLine.getBounds(),{padding:[60,60]});
+    }
+
+    // Предвычисляем накопленные расстояния вдоль маршрута
+    const cumKm = [0];
+    for(let i=1;i<routeCoords.length;i++){
+        cumKm.push(cumKm[i-1]+haversine(routeCoords[i-1][0],routeCoords[i-1][1],routeCoords[i][0],routeCoords[i][1]));
+    }
+    const routeTotalKm = cumKm[cumKm.length-1];
+
+    // ── СИМУЛЯЦИЯ ДВИЖЕНИЯ ───────────────────────────────────────────────
+    // Скорость: 35-50 км/ч (как реальный городской курьер)
+    const BASE_SPEED = 40; // км/ч
+    const TICK_MS    = 250; // обновление 4 раза в секунду (плавно как в Glovo)
+
+    let traveledKm = 0;
+    let lastLat = WH_LAT, lastLng = WH_LNG;
+    let prevHeading = 0;
+
+    const ticker = setInterval(async ()=>{
+        // Скорость с небольшим шумом (светофоры, пробки)
+        const noise = (Math.random()-.3) * 8;
+        const speed = Math.max(20, Math.min(60, BASE_SPEED + noise));
+        const stepKm = speed * (TICK_MS/3600000);
+        traveledKm = Math.min(traveledKm + stepKm, routeTotalKm);
+
+        const pct = traveledKm / routeTotalKm;
+
+        // Найти текущий сегмент
+        let seg = 0;
+        while(seg < cumKm.length-2 && cumKm[seg+1] < traveledKm) seg++;
+        const segLen = cumKm[seg+1] - cumKm[seg];
+        const segT   = segLen>0 ? (traveledKm - cumKm[seg]) / segLen : 0;
+        const lat = lerp(routeCoords[seg][0], routeCoords[seg+1][0], segT);
+        const lng = lerp(routeCoords[seg][1], routeCoords[seg+1][1], segT);
+
+        // Двигаем маркер курьера
+        courierM.setLatLng([lat,lng]);
+
+        // Плавно следим за курьером (камера едет вместе)
+        map.panTo([lat,lng],{animate:true,duration:0.2,noMoveStart:true});
+
+        // Обновляем линии
+        const doneCoords = routeCoords.slice(0, seg+1);
+        doneCoords.push([lat,lng]);
+        doneLine.setLatLngs(doneCoords);
+
+        const aheadCoords = [[lat,lng], ...routeCoords.slice(seg+1)];
+        aheadLine.setLatLngs(aheadCoords);
+
+        // ETA
+        const remKm  = routeTotalKm - traveledKm;
+        const etaMin = Math.max(0, Math.ceil(remKm / speed * 60));
+
+        document.getElementById('etaVal').textContent   = fmt(etaMin);
+        document.getElementById('distVal').textContent  = remKm > 0.1 ? remKm.toFixed(1)+' км' : '< 100 м';
+        document.getElementById('speedVal').textContent = Math.round(speed)+' км/ч';
+        document.getElementById('progFill').style.width = (pct*100)+'%';
+
+        lastLat=lat; lastLng=lng;
+
+        // ── Прибыл! ──
+        if(traveledKm >= routeTotalKm){
+            clearInterval(ticker);
+
+            // Обновляем статус на сервере
+            try{
+                await fetch(`${API}/order/${oid}/delivered`,{
+                    method:'POST',
+                    headers:{'Authorization':'Bearer '+token}
+                });
+            } catch(e){}
+
+            // Зум к точке доставки
+            map.flyTo([destLat,destLng],17,{animate:true,duration:1.5});
+
+            // Показываем оверлей
+            setTimeout(()=>{
+                document.getElementById('deliveredOverlay').style.display='flex';
+            }, 1500);
+        }
+
+    }, TICK_MS);
+}
+
+function showErr(msg){
+    document.getElementById('app').innerHTML=`
+    <div class="err-screen">
+        <i class="fas fa-exclamation-circle"></i>
+        <p>${msg}</p>
+        <a href="orders.html">← Назад</a>
+    </div>`;
+}
+
+init();
+</script>
+</body>
+</html>

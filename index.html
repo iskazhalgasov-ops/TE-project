@@ -142,18 +142,52 @@ function checkAuth() {
     if (!token) return;
     var userData = parseJwt(token);
     if (userData) {
-        authArea.innerHTML =
-            '<div style="position:relative;">' +
-                '<a href="#" id="userBtn">' + userData.name + '</a>' +
-                '<div id="dropdown" style="display:none;position:absolute;right:0;background:white;' +
-                    'box-shadow:0 5px 20px rgba(0,0,0,0.1);border-radius:10px;padding:10px;z-index:100;">' +
-                    '<button onclick="logout()" style="background:#8e24aa;color:white;border:none;' +
-                        'padding:8px 15px;border-radius:8px;cursor:pointer;">Выйти</button>' +
-                '</div>' +
-            '</div>';
-        document.getElementById('userBtn').onclick = function() {
+        // ОБНОВЛЕННЫЙ БЛОК: Добавляем кнопку "Заказы" и улучшаем меню
+        authArea.innerHTML = `
+            <div style="display:flex; align-items:center; gap:20px;">
+                <!-- Ссылка на историю заказов -->
+                <a href="orders.html" style="color:#6a1b9a; text-decoration:none; font-weight:600; font-size:14px; display:flex; align-items:center; gap:5px;">
+                    <i class="fas fa-list-alt"></i> Заказы
+                </a>
+
+                <div style="position:relative;">
+                    <!-- Имя пользователя с иконкой стрелочки -->
+                    <a href="#" id="userBtn" style="color:#6a1b9a; text-decoration:none; font-weight:700; display:flex; align-items:center; gap:5px;">
+                        ${userData.name} <i class="fas fa-chevron-down" style="font-size:10px;"></i>
+                    </a>
+
+                    <!-- Выпадающее меню -->
+                    <div id="dropdown" style="display:none; position:absolute; right:0; background:white; 
+                        box-shadow:0 5px 20px rgba(0,0,0,0.1); border-radius:10px; padding:10px; z-index:100; min-width:150px; margin-top:10px;">
+                        
+                        <a href="orders.html" style="display:block; padding:8px 10px; color:#6a1b9a; text-decoration:none; font-size:13px; font-weight:600; border-bottom:1px solid #eee; margin-bottom:5px;">
+                            Мои заказы
+                        </a>
+
+                        <button onclick="logout()" style="background:#8e24aa; color:white; border:none; 
+                            padding:8px 15px; border-radius:8px; cursor:pointer; width:100%; font-weight:600;">
+                            Выйти
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Обработчик клика для открытия меню
+        document.getElementById('userBtn').onclick = function(e) {
+            e.preventDefault(); // Чтобы страница не прыгала вверх
             var drop = document.getElementById('dropdown');
             drop.style.display = drop.style.display === 'block' ? 'none' : 'block';
+        };
+
+        // Закрытие меню при клике вне его области
+        window.onclick = function(event) {
+            if (!event.target.matches('#userBtn')) {
+                var dropdown = document.getElementById('dropdown');
+                if (dropdown && dropdown.style.display === 'block') {
+                    dropdown.style.display = 'none';
+                }
+            }
         };
     }
 }

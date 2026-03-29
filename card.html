@@ -421,9 +421,9 @@ document.getElementById('checkoutBtn').onclick = async () => {
                 cart,
                 delivery: {
                     method,
-                    address: selectedAddress || null,
-                    lat: selectedLat,
-                    lng: selectedLng,
+                    address:       selectedAddress || null,
+                    lat:           selectedLat,
+                    lng:           selectedLng,
                     deliveryPrice: currentDeliveryPrice
                 }
             })
@@ -431,23 +431,29 @@ document.getElementById('checkoutBtn').onclick = async () => {
         const data = await res.json();
         if (data.error) return alert(data.error);
 
-        let msg = 'Заказ оформлен!\nТовары: ' + (data.total - data.deliveryPrice) + ' ₸';
-        if (data.deliveryPrice > 0) msg += '\nДоставка: ' + data.deliveryPrice + ' ₸';
-        msg += '\nИтого: ' + data.total + ' ₸';
-        if (selectedAddress) msg += '\nАдрес: ' + selectedAddress;
-        alert(msg);
-
+        // ✅ ОЧИЩАЕМ КОРЗИНУ
         cart = []; save(); renderCart();
         document.getElementById('deliveryMethod').value = '';
         document.getElementById('courierBlock').style.display = 'none';
         document.getElementById('deliveryPriceBlock').style.display = 'none';
         document.getElementById('grandTotalRow').style.display = 'none';
         selectedAddress = ''; selectedLat = null; selectedLng = null; currentDeliveryPrice = 0;
+
+        // ✅ ПЕРЕКИДЫВАЕМ НА СТРАНИЦУ ЗАКАЗОВ (как в Glovo/Яндекс.Еда)
+        if (data.orderId && method === 'courier') {
+            // Сразу на трекинг!
+            window.location.href = `tracking.html?orderId=${data.orderId}`;
+        } else {
+            // Самовывоз — на историю заказов
+            window.location.href = 'orders.html';
+        }
+
     } catch(err) {
         console.error(err);
         alert('Ошибка при оформлении заказа');
     }
 };
+
 
 renderCart();
 </script>

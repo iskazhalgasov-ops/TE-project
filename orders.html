@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Мои заказы | LavandaBloom</title>
+    <link rel="stylesheet" href="style.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+    <style>
+        * { box-sizing: border-box; }
+
+        .orders-wrap {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 40px 20px 80px;
+        }
+
+        /* ── Шапка ── */
+        .orders-head {
+            text-align: center;
+            margin-bottom: 36px;
+        }
+        .orders-head h1 {
+            font-family: 'Great Vibes', cursive;
+            font-size: 52px;
+            color: #6a1b9a;
+            margin: 0 0 6px;
+            line-height: 1;
+        }
+        .orders-head p {
+            color: #9c27b0;
+            font-size: 14px;
+            margin: 0;
+        }
+
+        /* ── Фильтры ── */
+        .filter-row {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 28px;
+        }
+        .filter-chip {
+            padding: 8px 18px;
+            border-radius: 24px;
+            border: 1.5px solid #e1bee7;
+            background: white;
+            color: #6a1b9a;
+            font: 600 13px 'Montserrat', sans-serif;
+            cursor: pointer;
+            transition: all .2s;
+        }
+        .filter-chip:hover  { border-color: #8e24aa; }
+        .filter-chip.active { background: #8e24aa; border-color: #8e24aa; color: white; }
+        .filter-chip .cnt   { display: inline-block; background: rgba(255,255,255,.3); border-radius: 10px; padding: 1px 7px; margin-left: 5px; font-size: 11px; }
+        .filter-chip.active .cnt { background: rgba(255,255,255,.25); }
+
+        /* ── Карточка заказа ── */
+        .order-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 2px 16px rgba(142,36,170,.07);
+            border: 1.5px solid #f3e5f5;
+            margin-bottom: 16px;
+            overflow: hidden;
+            transition: box-shadow .2s, transform .15s;
+        }
+        .order-card:hover { box-shadow: 0 6px 28px rgba(142,36,170,.13); transform: translateY(-1px); }
+
+        /* Шапка карточки */
+        .card-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            background: linear-gradient(135deg, #fdf8ff 0%, #f9f0ff 100%);
+            border-bottom: 1.5px solid #f3e5f5;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .card-head-left { display: flex; flex-direction: column; gap: 2px; }
+        .order-num { font-weight: 700; color: #4a148c; font-size: 15px; }
+        .order-date { font-size: 12px; color: #ab47bc; }
+
+        /* Бейдж статуса */
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 13px;
+            border-radius: 24px;
+            font: 700 12px 'Montserrat', sans-serif;
+            white-space: nowrap;
+        }
+        .s-pending   { background:#fff3e0; color:#e65100; border:1px solid #ffcc80; }
+        .s-assembly  { background:#fce4ec; color:#880e4f; border:1px solid #f48fb1; }
+        .s-transit   { background:#e3f2fd; color:#0d47a1; border:1px solid #90caf9; }
+        .s-delivered { background:#e8f5e9; color:#1b5e20; border:1px solid #a5d6a7; }
+        .s-cancelled { background:#f5f5f5; color:#616161; border:1px solid #e0e0e0; }
+
+        /* Живая точка */
+        .live-dot {
+            width: 7px; height: 7px;
+            background: #4caf50;
+            border-radius: 50%;
+            display: inline-block;
+            animation: blink 1.2s ease infinite;
+        }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+        /* ── Прогресс-степпер ── */
+        .stepper {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            padding: 20px 24px 4px;
+            position: relative;
+        }
+        .stepper-line {
+            position: absolute;
+            top: 34px;
+            left: 40px; right: 40px;
+            height: 3px;
+            background: #f3e5f5;
+        }
+        .stepper-progress {
+            position: absolute;
+            top: 34px;
+            left: 40px;
+            height: 3px;
+            background: linear-gradient(90deg, #8e24aa, #ce93d8);
+            transition: width .6s cubic-bezier(.4,0,.2,1);
+        }
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            z-index: 1;
+            flex: 1;
+        }
+        .step-circle {
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            background: white;
+            border: 2.5px solid #e1bee7;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 13px;
+            transition: all .3s;
+        }
+        .step.done .step-circle   { background: #8e24aa; border-color: #8e24aa; color: white; }
+        .step.active .step-circle {
+            background: white;
+            border-color: #8e24aa;
+            color: #8e24aa;
+            box-shadow: 0 0 0 4px rgba(142,36,170,.12);
+        }
+        .step.active.pulse .step-circle { animation: stepPulse 1.6s ease infinite; }
+        @keyframes stepPulse {
+            0%,100%{ box-shadow:0 0 0 4px rgba(142,36,170,.12); }
+            50%    { box-shadow:0 0 0 8px rgba(142,36,170,.06); }
+        }
+        .step-lbl {
+            font-size: 10px;
+            color: #ab47bc;
+            text-align: center;
+            line-height: 1.3;
+            max-width: 62px;
+        }
+        .step.done .step-lbl, .step.active .step-lbl { color: #6a1b9a; font-weight: 600; }
+
+        /* ── Инфо-строки ── */
+        .card-body { padding: 12px 20px 16px; }
+
+        .info-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+        .info-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: #fdf8ff;
+            border: 1px solid #f3e5f5;
+            border-radius: 20px;
+            padding: 4px 12px;
+            font-size: 12px;
+            color: #6a1b9a;
+        }
+        .info-chip i { color: #9c27b0; font-size: 11px; }
+
+        /* ── Курьер-блок (только в пути) ── */
+        .courier-strip {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background: linear-gradient(135deg, #f3e5f5, #ede7f6);
+            border-radius: 14px;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+        }
+        .courier-avatar {
+            width: 44px; height: 44px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #8e24aa, #6a1b9a);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px;
+            flex-shrink: 0;
+        }
+        .courier-info { flex: 1; }
+        .courier-name { font-weight: 700; color: #4a148c; font-size: 14px; }
+        .courier-sub  { font-size: 12px; color: #9c27b0; margin-top: 2px; }
+        .courier-phone-btn {
+            width: 38px; height: 38px;
+            border-radius: 50%;
+            background: #8e24aa;
+            color: white;
+            border: none;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px;
+            transition: background .2s;
+            text-decoration: none;
+        }
+        .courier-phone-btn:hover { background: #6a1b9a; }
+
+        /* ── Товары ── */
+        .items-toggle {
+            background: none;
+            border: 1px solid #e1bee7;
+            color: #8e24aa;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font: 600 12px 'Montserrat', sans-serif;
+            cursor: pointer;
+            transition: all .2s;
+        }
+        .items-toggle:hover { background: #f3e5f5; }
+
+        .items-list {
+            display: none;
+            margin-top: 12px;
+            border-top: 1px solid #f9f0ff;
+            padding-top: 12px;
+        }
+        .items-list.open { display: block; }
+
+        .item-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 7px 0;
+            border-bottom: 1px solid #fce4ec;
+        }
+        .item-row:last-child { border-bottom: none; }
+        .item-thumb {
+            width: 44px; height: 44px;
+            border-radius: 10px;
+            object-fit: cover;
+            flex-shrink: 0;
+        }
+        .item-title { flex: 1; font-size: 13px; color: #4a148c; font-weight: 600; }
+        .item-qty   { font-size: 12px; color: #9c27b0; }
+        .item-sum   { font-size: 13px; font-weight: 700; color: #8e24aa; }
+
+        /* ── Футер карточки ── */
+        .card-foot {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 20px;
+            background: #fdf8ff;
+            border-top: 1.5px solid #f3e5f5;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .total-line { font-size: 14px; color: #4a148c; }
+        .total-line b { color: #8e24aa; font-size: 17px; }
+
+        .track-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            background: linear-gradient(135deg, #8e24aa, #6a1b9a);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 24px;
+            font: 700 13px 'Montserrat', sans-serif;
+            cursor: pointer;
+            text-decoration: none;
+            box-shadow: 0 4px 14px rgba(142,36,170,.3);
+            transition: transform .15s, box-shadow .15s;
+        }
+        .track-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(142,36,170,.4); }
+        .track-btn.pickup-btn { background: linear-gradient(135deg, #26a69a, #00796b); box-shadow: 0 4px 14px rgba(38,166,154,.3); }
+
+        /* ── Пустой список ── */
+        .empty-state {
+            text-align: center;
+            padding: 70px 20px;
+        }
+        .empty-icon {
+            font-size: 72px;
+            margin-bottom: 16px;
+            display: block;
+            opacity: .6;
+        }
+        .empty-state h2 { color: #6a1b9a; margin: 0 0 8px; }
+        .empty-state p  { color: #9c27b0; font-size: 14px; }
+        .empty-state a  { color: #8e24aa; font-weight: 700; }
+
+        /* ── Лоадер ── */
+        .spinner-wrap { text-align: center; padding: 70px; }
+        .spinner-wrap i { font-size: 38px; color: #ce93d8; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<nav>
+    <ul>
+        <li><a href="index.html">Басты бет</a></li>
+        <li><a href="index.html#catalog">Каталог</a></li>
+        <li><a href="about.html">Біз туралы</a></li>
+        <li><a href="contact.html">Байланыс</a></li>
+        <li id="authArea"><a href="login.html">Кіру</a></li>
+        <li><a href="card.html"><i class="fas fa-shopping-cart"></i><span id="cartCount">0</span></a></li>
+    </ul>
+</nav>
+
+<div class="orders-wrap">
+    <div class="orders-head">
+        <h1>Мои заказы</h1>
+        <p>История покупок и отслеживание доставки</p>
+    </div>
+
+    <div class="filter-row" id="filterRow">
+        <button class="filter-chip active" data-f="all">Все <span class="cnt" id="cnt-all">0</span></button>
+        <button class="filter-chip" data-f="transit"><span class="live-dot"></span> В пути <span class="cnt" id="cnt-transit">0</span></button>
+        <button class="filter-chip" data-f="pending">Собирается <span class="cnt" id="cnt-pending">0</span></button>
+        <button class="filter-chip" data-f="assembly">Готовится <span class="cnt" id="cnt-assembly">0</span></button>
+        <button class="filter-chip" data-f="delivered">Доставлено <span class="cnt" id="cnt-delivered">0</span></button>
+    </div>
+
+    <div id="ordersBox">
+        <div class="spinner-wrap"><i class="fas fa-spinner"></i></div>
+    </div>
+</div>
+
+<footer class="footer">
+    <div class="footer-container">
+        <div class="footer-brand"><h3>LavandaBloom</h3><p>Гүлдердің нәзіктігі мен сұлулығы – бізбен бірге.</p></div>
+        <div class="footer-links">
+            <h4>Беттер</h4>
+            <ul>
+                <li><a href="index.html">Басты бет</a></li>
+                <li><a href="about.html">Біз туралы</a></li>
+                <li><a href="index.html#catalog">Каталог</a></li>
+                <li><a href="contact.html">Байланыс</a></li>
+            </ul>
+        </div>
+        <div class="footer-contact">
+            <h4>Байланыс</h4>
+            <p>Тел: +7 (777) 777-77-77</p>
+            <p>Email: info@lavandabloom.kz</p>
+            <p>Мекенжай: Астана, Қазақстан</p>
+            <div class="footer-social">
+                <a href="#"><i class="fab fa-instagram"></i></a>
+                <a href="#"><i class="fab fa-facebook-f"></i></a>
+                <a href="#"><i class="fab fa-tiktok"></i></a>
+                <a href="#"><i class="fab fa-whatsapp"></i></a>
+            </div>
+        </div>
+    </div>
+    <div class="footer-bottom"><p>© 2025 LavandaBloom. Барлық құқықтар қорғалған.</p></div>
+</footer>
+
+<script>
+const API = 'http://localhost:3000';
+
+/* ── AUTH ── */
+function parseJwt(t) {
+    try { return JSON.parse(decodeURIComponent(Array.prototype.map.call(atob(t.split('.')[1]),c=>'%'+('00'+c.charCodeAt(0).toString(16)).slice(-2)).join(''))); }
+    catch(e){ return null; }
+}
+const token = localStorage.getItem('token');
+if (!token) { location.href = 'login.html'; }
+const me = parseJwt(token);
+
+const authArea = document.getElementById('authArea');
+const cart = JSON.parse(localStorage.getItem('cart')) || [];
+document.getElementById('cartCount').innerText = cart.reduce((s,i)=>s+(i.quantity||1),0);
+
+if (me) {
+    authArea.innerHTML = `<div style="position:relative">
+        <a href="#" id="uBtn">${me.name}</a>
+        <div id="uDrop" style="display:none;position:absolute;right:0;background:#fff;box-shadow:0 5px 20px rgba(0,0,0,.12);border-radius:12px;padding:10px;z-index:200;min-width:150px;">
+            <a href="orders.html" style="display:block;padding:7px 12px;color:#6a1b9a;text-decoration:none;font-size:13px;font-weight:600;"><i class="fas fa-list-alt" style="margin-right:6px;"></i>Мои заказы</a>
+            <button onclick="logout()" style="width:100%;background:#8e24aa;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;margin-top:4px;font-family:inherit;">Выйти</button>
+        </div></div>`;
+    document.getElementById('uBtn').onclick = () => {
+        const d=document.getElementById('uDrop');
+        d.style.display=d.style.display==='block'?'none':'block';
+    };
+}
+function logout(){ localStorage.removeItem('token'); location.href='index.html'; }
+
+/* ── КОНФИГ СТАТУСОВ ── */
+const STATUS = {
+    pending:   { label:'Собирается',  cls:'s-pending',   icon:'fa-clock',        steps:0 },
+    assembly:  { label:'Готовится',   cls:'s-assembly',  icon:'fa-seedling',     steps:1 },
+    transit:   { label:'В пути',      cls:'s-transit',   icon:'fa-truck',        steps:2 },
+    delivered: { label:'Доставлено',  cls:'s-delivered', icon:'fa-check-circle', steps:3 },
+    cancelled: { label:'Отменён',     cls:'s-cancelled', icon:'fa-times-circle', steps:-1 },
+};
+const STEPS = [
+    { icon:'fa-box-open',       label:'Принят'     },
+    { icon:'fa-seedling',       label:'Готовится'  },
+    { icon:'fa-truck',          label:'В пути'     },
+    { icon:'fa-check-circle',   label:'Доставлен'  },
+];
+const STEP_PCT = [0, 33, 66, 100];
+
+/* ── ДАННЫЕ ── */
+let allOrders = [];
+let filter = 'all';
+
+async function load() {
+    try {
+        const r = await fetch(`${API}/my-orders`, { headers:{'Authorization':'Bearer '+token} });
+        const d = await r.json();
+        if (d.error) throw d.error;
+        allOrders = d;
+        updateCounts();
+        render();
+    } catch(e) {
+        document.getElementById('ordersBox').innerHTML = `<div class="empty-state"><span class="empty-icon">⚠️</span><h2>Ошибка загрузки</h2><p>${e}</p></div>`;
+    }
+}
+
+function updateCounts() {
+    const keys = ['all','transit','pending','assembly','delivered'];
+    keys.forEach(k => {
+        const el = document.getElementById('cnt-'+k);
+        if (el) el.textContent = k==='all' ? allOrders.length : allOrders.filter(o=>o.status===k).length;
+    });
+}
+
+function render() {
+    const list = filter==='all' ? allOrders : allOrders.filter(o=>o.status===filter);
+    const box  = document.getElementById('ordersBox');
+    if (!list.length) {
+        box.innerHTML = `<div class="empty-state">
+            <span class="empty-icon">🛍️</span>
+            <h2>Заказов нет</h2>
+            <p>Загляни в <a href="index.html#catalog">каталог</a> — там красиво 🌸</p>
+        </div>`;
+        return;
+    }
+    box.innerHTML = list.map(buildCard).join('');
+
+    // Обработчики
+    box.querySelectorAll('.items-toggle').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const list = document.getElementById('itl-'+btn.dataset.id);
+            const open = list.classList.toggle('open');
+            btn.innerHTML = open ? '<i class="fas fa-chevron-up"></i> Скрыть товары' : '<i class="fas fa-chevron-down"></i> Состав заказа';
+        });
+    });
+}
+
+function buildCard(o) {
+    const st   = STATUS[o.status] || STATUS.pending;
+    const date = new Date(o.created_at).toLocaleString('ru-RU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    const isCourier   = o.delivery_method === 'courier';
+    const isLive      = o.status === 'transit' && isCourier;
+    const isDelivered = o.status === 'delivered';
+    const dp          = Number(o.delivery_price)||0;
+    const goodsTotal  = Number(o.total_price) - dp;
+
+    // Степпер
+    const stepIdx = st.steps;
+    const pct     = STEP_PCT[stepIdx] ?? 0;
+    let stepperHtml = '';
+    if (o.status !== 'cancelled') {
+        const stepsHtml = STEPS.map((s,i)=>{
+            const cls = i < stepIdx ? 'done' : i===stepIdx ? 'active'+(isLive&&i===2?' pulse':'') : '';
+            return `<div class="step ${cls}">
+                <div class="step-circle"><i class="fas ${s.icon}"></i></div>
+                <div class="step-lbl">${s.label}</div>
+            </div>`;
+        }).join('');
+        // Считаем ширину прогресс-бара с учётом отступов
+        const leftPad  = 40; // px примерно
+        const fillPct  = pct; // % от всей линии (от 40px до 100%-40px)
+        stepperHtml = `
+        <div class="stepper">
+            <div class="stepper-line"></div>
+            <div class="stepper-progress" style="width:calc(${pct}% * (100% - 80px) / 100 + ${pct>0?0:0}px); width:${pct===0?'0':pct===100?'calc(100% - 80px)':'calc((100% - 80px) * '+pct+' / 100)'}"></div>
+            ${stepsHtml}
+        </div>`;
+    }
+
+    // Блок курьера
+    let courierHtml = '';
+    if (isLive) {
+        const name  = o.courier_name  || 'Азамат';
+        const phone = o.courier_phone || '+7 701 555 0101';
+        courierHtml = `
+        <div class="courier-strip">
+            <div class="courier-avatar">🛵</div>
+            <div class="courier-info">
+                <div class="courier-name">${name}</div>
+                <div class="courier-sub"><span class="live-dot"></span> Курьер едет к вам</div>
+            </div>
+            <a href="tel:${phone}" class="courier-phone-btn"><i class="fas fa-phone"></i></a>
+        </div>`;
+    }
+
+    // Инфо чипсы
+    const delivLabel = isCourier ? 'Курьер' : 'Самовывоз';
+    const delivIcon  = isCourier ? 'fa-truck' : 'fa-store';
+    let chipsHtml = `
+        <div class="info-chips">
+            <span class="info-chip"><i class="fas ${delivIcon}"></i>${delivLabel}</span>
+            ${dp>0 ? `<span class="info-chip"><i class="fas fa-motorcycle"></i>Доставка: ${dp} ₸</span>` : ''}
+            ${o.delivery_address ? `<span class="info-chip"><i class="fas fa-map-pin"></i>${o.delivery_address.slice(0,45)}${o.delivery_address.length>45?'…':''}</span>` : ''}
+        </div>`;
+
+    // Товары
+    let itemsHtml = '<p style="color:#9c27b0;font-size:13px;padding:4px 0;">Состав загружается...</p>';
+    if (o.items && o.items.length) {
+        itemsHtml = o.items.map(it => {
+            const sum  = Number(it.price||it.product_price||0) * Number(it.quantity||1);
+            const img  = it.image_url ? `<img src="${API}/uploads/${it.image_url}" class="item-thumb" onerror="this.style.display='none'">` : '';
+            return `<div class="item-row">
+                ${img}
+                <span class="item-title">${it.title}</span>
+                <span class="item-qty">${it.quantity} шт.</span>
+                <span class="item-sum">${sum} ₸</span>
+            </div>`;
+        }).join('');
+    }
+
+    // CTA кнопка
+    let ctaHtml = '';
+    if (isLive) {
+        ctaHtml = `<a href="tracking.html?orderId=${o.id}" class="track-btn">
+            <span class="live-dot"></span> Смотреть на карте
+        </a>`;
+    } else if (isCourier && !isDelivered && o.status !== 'cancelled') {
+        ctaHtml = `<a href="tracking.html?orderId=${o.id}" class="track-btn">
+            <i class="fas fa-map-marker-alt"></i> Отследить
+        </a>`;
+    } else if (!isCourier && !isDelivered) {
+        ctaHtml = `<a href="tracking.html?orderId=${o.id}" class="track-btn pickup-btn">
+            <i class="fas fa-store"></i> Маршрут на склад
+        </a>`;
+    }
+
+    return `
+    <div class="order-card">
+        <div class="card-head">
+            <div class="card-head-left">
+                <div class="order-num">Заказ #${o.id}</div>
+                <div class="order-date">${date}</div>
+            </div>
+            <div class="status-pill ${st.cls}">
+                ${isLive ? '<span class="live-dot"></span>' : `<i class="fas ${st.icon}"></i>`}
+                ${st.label}
+            </div>
+        </div>
+
+        ${stepperHtml}
+
+        <div class="card-body">
+            ${courierHtml}
+            ${chipsHtml}
+            <button class="items-toggle" data-id="${o.id}">
+                <i class="fas fa-chevron-down"></i> Состав заказа
+            </button>
+            <div class="items-list" id="itl-${o.id}">${itemsHtml}</div>
+        </div>
+
+        <div class="card-foot">
+            <div class="total-line">
+                ${dp>0 ? `${goodsTotal} ₸ + ${dp} ₸ = ` : ''}
+                <b>${o.total_price} ₸</b>
+            </div>
+            ${ctaHtml}
+        </div>
+    </div>`;
+}
+
+/* ── ФИЛЬТРЫ ── */
+document.querySelectorAll('.filter-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-chip').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        filter = btn.dataset.f;
+        render();
+    });
+});
+
+load();
+// Автообновление каждые 20 сек (курьер едет — статус меняется)
+setInterval(load, 20000);
+</script>
+</body>
+</html>
