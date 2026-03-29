@@ -1,121 +1,340 @@
 <!DOCTYPE html>
 <html lang="kk">
-
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Байланыс | LavandaBloom</title>
-  <link rel="stylesheet" href="style.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Отзывы | LavandaBloom</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet" />
+    <style>
+        .reviews-section { max-width: 800px; margin: 60px auto; padding: 0 20px; }
+        .reviews-section h1 { color: #6a1b9a; font-size: 28px; margin-bottom: 20px; }
+        .product-card {
+            display: flex; gap: 20px; align-items: center; background: white;
+            border-radius: 14px; padding: 20px;
+            box-shadow: 0 4px 15px rgba(108,91,123,0.1); margin-bottom: 30px;
+        }
+        .product-card img { width: 120px; height: 120px; object-fit: cover; border-radius: 10px; }
+        .product-card h2 { color: #7b1fa2; margin: 0 0 8px; }
+        .product-card p { margin: 0; color: #4a148c; font-size: 14px; }
+        .reviews-list { display: flex; flex-direction: column; gap: 14px; margin-bottom: 30px; }
+        .review-item {
+            background: white; border-radius: 12px; padding: 16px 20px;
+            box-shadow: 0 2px 8px rgba(108,91,123,0.08); border-left: 4px solid #ce93d8;
+        }
+        .review-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .review-meta { display: flex; align-items: center; gap: 12px; }
+        .reviewer-name { font-weight: 700; color: #6a1b9a; }
+        .stars { color: #f4b400; font-size: 16px; }
+        .review-comment { color: #4a148c; font-size: 14px; line-height: 1.5; margin: 0; }
+        .delete-review-btn {
+            background: none; border: 1px solid #e57373; color: #e57373;
+            border-radius: 8px; padding: 4px 10px; font-size: 12px;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .delete-review-btn:hover { background: #e57373; color: white; }
+        .no-reviews {
+            text-align: center; color: #9c27b0; font-style: italic;
+            padding: 20px; background: white; border-radius: 12px;
+        }
+        .leave-review-block {
+            background: white; border-radius: 14px; padding: 24px;
+            box-shadow: 0 4px 15px rgba(108,91,123,0.1);
+        }
+        .leave-review-block h3 { color: #6a1b9a; margin: 0 0 16px; }
+        .leave-review-block label { display: block; color: #4a148c; font-weight: 600; margin-bottom: 6px; font-size: 14px; }
+        .leave-review-block select,
+        .leave-review-block textarea {
+            width: 100%; padding: 10px 14px; border: 1px solid #d1c4e9;
+            border-radius: 10px; font-family: 'Montserrat', sans-serif;
+            font-size: 14px; color: #4a148c; outline: none;
+            margin-bottom: 14px; box-sizing: border-box;
+        }
+        .leave-review-block select:focus,
+        .leave-review-block textarea:focus { border-color: #8e24aa; }
+        .leave-review-block textarea { resize: vertical; }
+        .submit-review-btn {
+            background: linear-gradient(135deg, #8e24aa, #6a1b9a); color: white; border: none;
+            padding: 12px 28px; border-radius: 30px; font-size: 15px; font-weight: 600;
+            cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 14px rgba(142,36,170,0.3);
+        }
+        .submit-review-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(142,36,170,0.4); }
+        .login-hint {
+            text-align: center; padding: 16px; background: #fdf8ff;
+            border-radius: 12px; border: 1px dashed #ce93d8; color: #8e24aa;
+        }
+        .login-hint a { color: #6a1b9a; font-weight: 700; }
+    </style>
 </head>
-
 <body>
 
-  <nav>
+<nav>
     <ul>
-      <li><a href="index.html">Басты бет</a></li>
-      <li><a href="about.html">Біз туралы</a></li>
-      <li><a href="index.html#catalog">Каталог</a></li>
-      <li><a href="contact.html" class="active">Байланыс</a></li>
-      <li id="authArea"><a href="login.html">Кіру</a></li>
-      <li>
-        <a href="card.html">
-          <i class="fas fa-shopping-cart"></i>
-          <span id="cartCount">0</span>
-        </a>
-      </li>
+        <li><a href="index.html">Басты бет</a></li>
+        <li><a href="index.html#catalog">Каталог</a></li>
+        <li><a href="about.html">Біз туралы</a></li>
+        <li><a href="contact.html">Байланыс</a></li>
+        <li id="authArea"><a href="login.html">Кіру</a></li>
+        <li>
+            <a href="card.html">
+                <i class="fas fa-shopping-cart"></i>
+                <span id="cartCount">0</span>
+            </a>
+        </li>
     </ul>
-  </nav>
+</nav>
 
-  <section class="contact-section">
-    <div class="contact-container">
-      <h2>Бізбен байланысыңыз</h2>
-      <p>Сұрақтарыңыз бар ма? Төмендегі форма арқылы бізге хабарласыңыз.</p>
+<section class="reviews-section">
+    <h1 id="pageTitle">Отзывы</h1>
+    <div id="productCard"></div>
+    <div class="reviews-list" id="reviewsList"></div>
+    <div id="reviewFormArea"></div>
+</section>
 
-      <form class="contact-form">
-        <input type="text" placeholder="Аты-жөніңіз" required />
-        <input type="email" placeholder="Электрондық пошта" required />
-        <textarea placeholder="Хабарламаңызды жазыңыз..." rows="5" required></textarea>
-        <button type="submit">Жіберу</button>
-      </form>
-
-      <div class="contact-info">
-        <h3>Байланыс ақпараты</h3>
-        <p><strong>Мекенжай:</strong> Алматы, Қазақстан</p>
-        <p><strong>Тел:</strong> +7 (777) 777-77-77</p>
-        <p><strong>Email:</strong> info@lavandabloom.kz</p>
-      </div>
-    </div>
-  </section>
-
-  <footer class="footer">
+<footer class="footer">
     <div class="footer-container">
-      <div class="footer-brand">
-        <h3>LavandaBloom</h3>
-        <p>Гүлдердің нәзіктігі мен сұлулығы – бізбен бірге.</p>
-      </div>
-      <div class="footer-links">
-        <h4>Беттер</h4>
-        <ul>
-          <li><a href="index.html">Басты бет</a></li>
-          <li><a href="about.html">Біз туралы</a></li>
-          <li><a href="index.html#catalog">Каталог</a></li>
-          <li><a href="contact.html">Байланыс</a></li>
-        </ul>
-      </div>
-      <div class="footer-contact">
-        <h4>Байланыс</h4>
-        <p>Тел: +7 (777) 777-77-77</p>
-        <p>Email: info@lavandabloom.kz</p>
-        <p>Мекенжай: Алматы, Қазақстан</p>
-        <div class="footer-social">
-          <a href="#"><i class="fab fa-instagram"></i></a>
-          <a href="#"><i class="fab fa-facebook-f"></i></a>
-          <a href="#"><i class="fab fa-tiktok"></i></a>
-          <a href="#"><i class="fab fa-whatsapp"></i></a>
+        <div class="footer-brand">
+            <h3>LavandaBloom</h3>
+            <p>Гүлдердің нәзіктігі мен сұлулығы – бізбен бірге.</p>
         </div>
-      </div>
+        <div class="footer-links">
+            <h4>Беттер</h4>
+            <ul>
+                <li><a href="index.html">Басты бет</a></li>
+                <li><a href="about.html">Біз туралы</a></li>
+                <li><a href="index.html#catalog">Каталог</a></li>
+                <li><a href="contact.html">Байланыс</a></li>
+            </ul>
+        </div>
+        <div class="footer-contact">
+            <h4>Байланыс</h4>
+            <p>Тел: +7 (777) 777-77-77</p>
+            <p>Email: info@lavandabloom.kz</p>
+            <p>Мекенжай: Астана, Қазақстан</p>
+            <div class="footer-social">
+                <a href="#"><i class="fab fa-instagram"></i></a>
+                <a href="#"><i class="fab fa-facebook-f"></i></a>
+                <a href="#"><i class="fab fa-tiktok"></i></a>
+                <a href="#"><i class="fab fa-whatsapp"></i></a>
+            </div>
+        </div>
     </div>
     <div class="footer-bottom">
-      <p>© 2025 LavandaBloom. Барлық құқықтар қорғалған.</p>
+        <p>© 2025 LavandaBloom. Барлық құқықтар қорғалған.</p>
     </div>
-  </footer>
+</footer>
 
-  <script>
-  function parseJwt(token) {
+<script>
+var API_URL = 'http://localhost:3000';
+
+function parseJwt(token) {
     try {
-      return JSON.parse(decodeURIComponent(
-        Array.prototype.map.call(atob(token.split('.')[1]), c =>
-          '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')
-      ));
+        return JSON.parse(decodeURIComponent(
+            Array.prototype.map.call(atob(token.split('.')[1]), function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join('')
+        ));
     } catch(e) { return null; }
-  }
-  const token = localStorage.getItem('token');
-  const authArea = document.getElementById('authArea');
-  const cart = JSON.parse(localStorage.getItem('cart')) || [];
-  document.getElementById('cartCount').innerText = cart.reduce((s, i) => s + (i.quantity||1), 0);
+}
 
-  if (token) {
-    const user = parseJwt(token);
-    if (user) {
-      authArea.innerHTML = `
-        <div style="position:relative;">
-          <a href="#" id="userBtn">${user.name}</a>
-          <div id="dropdown" style="display:none;position:absolute;right:0;background:white;
-            box-shadow:0 5px 20px rgba(0,0,0,.1);border-radius:10px;padding:10px;z-index:100;">
-            <button onclick="logout()" style="background:#8e24aa;color:white;border:none;
-              padding:8px 15px;border-radius:8px;cursor:pointer;">Выйти</button>
-          </div>
-        </div>`;
-      document.getElementById('userBtn').onclick = () => {
-        const d = document.getElementById('dropdown');
-        d.style.display = d.style.display === 'block' ? 'none' : 'block';
-      };
+function getParam(name) {
+    return new URLSearchParams(window.location.search).get(name);
+}
+
+var token = localStorage.getItem('token');
+var currentUser = token ? parseJwt(token) : null;
+var authArea = document.getElementById('authArea');
+var cart = JSON.parse(localStorage.getItem('cart')) || [];
+document.getElementById('cartCount').innerText = cart.reduce(function(s, i) { return s + (i.quantity || 1); }, 0);
+
+if (currentUser) {
+    authArea.innerHTML =
+        '<div style="position:relative;">' +
+            '<a href="#" id="userBtn">' + currentUser.name + '</a>' +
+            '<div id="dropdown" style="display:none;position:absolute;right:0;background:white;' +
+                'box-shadow:0 5px 20px rgba(0,0,0,0.1);border-radius:10px;padding:10px;z-index:100;">' +
+                '<button onclick="logout()" style="background:#8e24aa;color:white;border:none;' +
+                    'padding:8px 15px;border-radius:8px;cursor:pointer;">Выйти</button>' +
+            '</div>' +
+        '</div>';
+    document.getElementById('userBtn').onclick = function() {
+        var drop = document.getElementById('dropdown');
+        drop.style.display = drop.style.display === 'block' ? 'none' : 'block';
+    };
+}
+function logout() { localStorage.removeItem('token'); location.reload(); }
+
+var productId = getParam('productId');
+if (!productId) {
+    document.getElementById('pageTitle').innerText = 'Товар не указан';
+} else {
+    loadProduct();
+    loadReviews();
+    renderReviewForm();
+}
+
+function loadProduct() {
+    fetch(API_URL + '/product/' + productId)
+        .then(function(r) { return r.json(); })
+        .then(function(p) {
+            if (p.error) return;
+            document.getElementById('pageTitle').innerText = 'Отзывы: ' + p.title;
+            var card = document.getElementById('productCard');
+            card.className = 'product-card';
+            var img = document.createElement('img');
+            img.src = API_URL + '/uploads/' + p.image_url;
+            img.alt = p.title;
+            var info = document.createElement('div');
+            var h2 = document.createElement('h2');
+            h2.textContent = p.title;
+            var desc = document.createElement('p');
+            desc.textContent = p.description;
+            var priceP = document.createElement('p');
+            priceP.style.cssText = 'font-weight:700;margin-top:8px;color:#8e24aa;';
+            priceP.textContent = p.price + ' \u20B8';
+            info.appendChild(h2);
+            info.appendChild(desc);
+            info.appendChild(priceP);
+            card.appendChild(img);
+            card.appendChild(info);
+        }).catch(function() {});
+}
+
+function loadReviews() {
+    fetch(API_URL + '/reviews/' + productId)
+        .then(function(r) { return r.json(); })
+        .then(function(reviews) {
+            var list = document.getElementById('reviewsList');
+            list.innerHTML = '';
+            if (!reviews || !reviews.length) {
+                var p = document.createElement('p');
+                p.className = 'no-reviews';
+                p.textContent = 'Пока нет отзывов. Будьте первым!';
+                list.appendChild(p);
+                return;
+            }
+            reviews.forEach(function(r) {
+                var item = document.createElement('div');
+                item.className = 'review-item';
+
+                var header = document.createElement('div');
+                header.className = 'review-header';
+
+                var meta = document.createElement('div');
+                meta.className = 'review-meta';
+
+                var name = document.createElement('span');
+                name.className = 'reviewer-name';
+                name.textContent = r.name;
+
+                var stars = document.createElement('span');
+                stars.className = 'stars';
+                var starsStr = '';
+                for (var k = 0; k < r.rating; k++) starsStr += '\u2B50';
+                stars.textContent = starsStr;
+
+                meta.appendChild(name);
+                meta.appendChild(stars);
+                header.appendChild(meta);
+
+                // Кнопка удаления — только для своего отзыва или admin
+                var canDelete = currentUser && (currentUser.id === r.user_id || currentUser.role === 'admin');
+                if (canDelete) {
+                    var delBtn = document.createElement('button');
+                    delBtn.className = 'delete-review-btn';
+                    delBtn.textContent = '\u2715 Удалить';
+                    (function(rid) {
+                        delBtn.onclick = function() {
+                            if (!confirm('Удалить этот отзыв?')) return;
+                            fetch(API_URL + '/reviews/' + rid, {
+                                method: 'DELETE',
+                                headers: { 'Authorization': 'Bearer ' + token }
+                            })
+                            .then(function(res) { return res.json(); })
+                            .then(function(data) {
+                                if (data.error) return alert(data.error);
+                                loadReviews();
+                            })
+                            .catch(function() { alert('Ошибка при удалении'); });
+                        };
+                    })(r.id);
+                    header.appendChild(delBtn);
+                }
+
+                var comment = document.createElement('p');
+                comment.className = 'review-comment';
+                comment.textContent = r.comment || '';
+
+                item.appendChild(header);
+                item.appendChild(comment);
+                list.appendChild(item);
+            });
+        }).catch(function() {});
+}
+
+function renderReviewForm() {
+    var area = document.getElementById('reviewFormArea');
+    if (!token) {
+        area.innerHTML = '<div class="login-hint">Чтобы оставить отзыв, <a href="login.html">войдите в аккаунт</a></div>';
+        return;
     }
-  }
-  function logout() { localStorage.removeItem('token'); location.reload(); }
-  </script>
-</body>
+    var block = document.createElement('div');
+    block.className = 'leave-review-block';
 
+    var h3 = document.createElement('h3');
+    h3.textContent = 'Оставить отзыв';
+
+    var labelRating = document.createElement('label');
+    labelRating.textContent = 'Оценка:';
+
+    var select = document.createElement('select');
+    select.id = 'newRating';
+    [['', '-- выберите --'],['1','\u2B50 (1)'],['2','\u2B50\u2B50 (2)'],['3','\u2B50\u2B50\u2B50 (3)'],['4','\u2B50\u2B50\u2B50\u2B50 (4)'],['5','\u2B50\u2B50\u2B50\u2B50\u2B50 (5)']].forEach(function(o) {
+        var opt = document.createElement('option');
+        opt.value = o[0]; opt.textContent = o[1];
+        select.appendChild(opt);
+    });
+
+    var labelComment = document.createElement('label');
+    labelComment.textContent = 'Комментарий:';
+
+    var textarea = document.createElement('textarea');
+    textarea.id = 'newComment';
+    textarea.placeholder = 'Напишите ваш отзыв...';
+    textarea.rows = 4;
+
+    var btn = document.createElement('button');
+    btn.className = 'submit-review-btn';
+    btn.textContent = 'Отправить отзыв';
+    btn.onclick = function() {
+        var rating = document.getElementById('newRating').value;
+        var comment = document.getElementById('newComment').value;
+        if (!rating) return alert('Выберите оценку');
+        fetch(API_URL + '/reviews', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ productId: productId, rating: parseInt(rating, 10), comment: comment })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.error) return alert(data.error);
+            document.getElementById('newRating').value = '';
+            document.getElementById('newComment').value = '';
+            loadReviews();
+        })
+        .catch(function() { alert('Ошибка при отправке'); });
+    };
+
+    block.appendChild(h3);
+    block.appendChild(labelRating);
+    block.appendChild(select);
+    block.appendChild(labelComment);
+    block.appendChild(textarea);
+    block.appendChild(btn);
+    area.appendChild(block);
+}
+</script>
+</body>
 </html>

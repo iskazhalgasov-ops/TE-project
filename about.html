@@ -8,8 +8,9 @@
     <link rel="stylesheet" href="style.css" />
     <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Montserrat:wght@400;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
-
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <body>
 
 <nav>
@@ -59,11 +60,7 @@
     <div class="container">
         <h2>Біздің мекенжай</h2>
         <div class="map-container">
-            <iframe
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d146858.300013755!2d71.30515165483727!3d51.16052205786915!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x424585c8d5d91e1d%3A0xf0e13f38dd853df2!2z0JDQstGC0L7Qv9Cw0YDRgdC60LjQuSDQoNCw0LHQsNC90LjQutCw!5e0!3m2!1sru!2skz!4v1718200000000!5m2!1sru!2skz"
-                width="100%" height="400" style="border:0; border-radius: 12px;" allowfullscreen="" loading="lazy"
-                referrerpolicy="no-referrer-when-downgrade">
-            </iframe>
+            <div id="map" style="width:100%; height:400px; border-radius:12px;"></div>
         </div>
     </div>
 </section>
@@ -147,6 +144,37 @@ function logout() {
     localStorage.removeItem('token');
     location.reload();
 }
+</script>
+
+<script>
+// координаты склада (те же, что в корзине)
+const WAREHOUSE_LAT = 51.1605;
+const WAREHOUSE_LNG = 71.4704;
+
+// создаём карту
+const map = L.map('map').setView([WAREHOUSE_LAT, WAREHOUSE_LNG], 15);
+
+// слой карты
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap',
+    maxZoom: 19
+}).addTo(map);
+
+// красивый маркер (как у тебя)
+const warehouseIcon = L.divIcon({
+    html: '<div style="width:34px;height:34px;background:#6a1b9a;border-radius:50%;border:3px solid white;' +
+          'box-shadow:0 3px 10px rgba(106,27,154,.6);display:flex;align-items:center;justify-content:center;' +
+          'color:white;font-size:16px;">&#9962;</div>',
+    iconSize:[34,34],
+    iconAnchor:[17,17],
+    className:''
+});
+
+// ставим маркер
+L.marker([WAREHOUSE_LAT, WAREHOUSE_LNG], { icon: warehouseIcon })
+    .addTo(map)
+    .bindPopup('<b>LavandaBloom</b><br>Астана, Жиембет жырау 2')
+    .openPopup();
 </script>
 
 </body>

@@ -35,6 +35,15 @@
         #selectedAddress .addr-icon { color:#8e24aa; flex-shrink:0; }
         #selectedAddress .no-addr { color:#aaa; font-style:italic; }
 
+        /* Блок с ценой доставки */
+        #deliveryPriceBlock {
+            display:none; margin-top:12px; background:white;
+            border:1px solid #ce93d8; border-radius:10px; padding:12px 16px;
+        }
+        #deliveryPriceBlock .dp-row { display:flex; justify-content:space-between; font-size:13px; color:#4a148c; margin-bottom:4px; }
+        #deliveryPriceBlock .dp-total { font-weight:700; font-size:15px; color:#8e24aa; }
+        #deliveryPriceBlock .dp-hint { font-size:11px; color:#9c27b0; margin-top:6px; font-style:italic; }
+
         .addr-search-wrap { position:relative; margin-bottom:10px; }
         #addrSearch {
             width:100%; padding:10px 36px 10px 14px; border:1px solid #d1c4e9; border-radius:10px;
@@ -81,28 +90,29 @@
     <h1>Ваша корзина</h1>
     <table class="cart-table">
         <thead>
-            <tr>
-                <th>Товар</th><th>Цена</th><th>Количество</th><th>Сумма</th><th></th>
-            </tr>
+            <tr><th>Товар</th><th>Цена</th><th>Количество</th><th>Сумма</th><th></th></tr>
         </thead>
         <tbody id="cartContainer"></tbody>
     </table>
 
     <div id="cartSummary">
-        <p>Итого: <span id="totalPrice">0</span> ₸</p>
+        <p>Товары: <span id="totalPrice">0</span> ₸</p>
 
         <div id="deliverySection">
             <label for="deliveryMethod">Способ доставки:</label>
             <select id="deliveryMethod">
                 <option value="">-- выберите --</option>
-                <option value="pickup">Самовывоз</option>
+                <option value="pickup">Самовывоз (бесплатно)</option>
                 <option value="courier">Курьер (адрес на карте)</option>
             </select>
 
             <div id="courierBlock">
                 <p class="block-title"><i class="fas fa-map-marker-alt"></i> Укажите адрес доставки</p>
+                <p style="font-size:12px;color:#8e24aa;margin:0 0 10px;">
+                    <i class="fas fa-warehouse"></i> Склад: Астана, Жиембет жырау 2
+                </p>
                 <div class="addr-search-wrap">
-                    <input type="text" id="addrSearch" placeholder="Поиск адреса в Алматы..." />
+                    <input type="text" id="addrSearch" placeholder="Поиск адреса в Астане..." />
                     <button id="addrSearchBtn" type="button"><i class="fas fa-search"></i></button>
                 </div>
                 <div id="addrResults"></div>
@@ -112,8 +122,25 @@
                     <i class="fas fa-map-pin addr-icon"></i>
                     <span class="no-addr">Адрес не выбран</span>
                 </div>
+
+                <!-- Цена доставки -->
+                <div id="deliveryPriceBlock">
+                    <div class="dp-row">
+                        <span>Расстояние от склада:</span>
+                        <span id="dpDistance">—</span>
+                    </div>
+                    <div class="dp-row dp-total">
+                        <span>Стоимость доставки:</span>
+                        <span id="dpPrice">—</span>
+                    </div>
+                    <div class="dp-hint">500 ₸ + 80 ₸/км</div>
+                </div>
             </div>
         </div>
+
+        <p id="grandTotalRow" style="font-weight:700;font-size:16px;color:#6a1b9a;display:none;">
+            Итого: <span id="grandTotal">0</span> ₸
+        </p>
 
         <button id="checkoutBtn">Оформить заказ</button>
     </div>
@@ -138,7 +165,7 @@
             <h4>Байланыс</h4>
             <p>Тел: +7 (777) 777-77-77</p>
             <p>Email: info@lavandabloom.kz</p>
-            <p>Мекенжай: Алматы, Қазақстан</p>
+            <p>Мекенжай: Астана, Қазақстан</p>
             <div class="footer-social">
                 <a href="#"><i class="fab fa-instagram"></i></a>
                 <a href="#"><i class="fab fa-facebook-f"></i></a>
@@ -154,7 +181,7 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-/* AUTH */
+/* ── AUTH ── */
 function parseJwt(token) {
     try {
         return JSON.parse(decodeURIComponent(
@@ -163,7 +190,6 @@ function parseJwt(token) {
         ));
     } catch(e) { return null; }
 }
-
 const token = localStorage.getItem('token');
 const authArea = document.getElementById('authArea');
 if (token) {
@@ -186,7 +212,7 @@ if (token) {
 }
 function logout() { localStorage.removeItem('token'); location.href = 'index.html'; }
 
-/* КОРЗИНА */
+/* ── КОРЗИНА ── */
 let cart = JSON.parse(localStorage.getItem('cart')) || [];
 
 function renderCart() {
@@ -216,6 +242,7 @@ function renderCart() {
     document.getElementById('totalPrice').innerText = total;
     const el = document.getElementById('cartCount');
     if (el) el.innerText = cart.reduce((s, i) => s + (i.quantity||1), 0);
+    updateGrandTotal();
 }
 
 function removeFromCart(i) { cart.splice(i,1); save(); renderCart(); }
@@ -223,8 +250,27 @@ function changeQty(i, d) { const q=(cart[i].quantity||1)+d; if(q<1)return; cart[
 function setQty(i, v) { const q=parseInt(v,10); if(isNaN(q)||q<1)return; cart[i].quantity=q; save(); renderCart(); }
 function save() { localStorage.setItem('cart', JSON.stringify(cart)); }
 
-/* КАРТА */
-let map = null, leafletMarker = null, selectedAddress = '', selectedLat = null, selectedLng = null;
+/* ── ИТОГО (товары + доставка) ── */
+let currentDeliveryPrice = 0;
+function updateGrandTotal() {
+    const prod = cart.reduce((s, i) => s + i.price * (i.quantity||1), 0);
+    const method = document.getElementById('deliveryMethod').value;
+    const grandRow = document.getElementById('grandTotalRow');
+    if (method === 'courier' && currentDeliveryPrice > 0) {
+        document.getElementById('grandTotal').innerText = prod + currentDeliveryPrice;
+        grandRow.style.display = 'block';
+    } else {
+        grandRow.style.display = 'none';
+    }
+}
+
+/* ── КАРТА (Астана, Жиембет жырау 2) ── */
+// Координаты склада — Астана, Жиембет жырау 2
+const WAREHOUSE_LAT = 51.1605;
+const WAREHOUSE_LNG = 71.4704;
+
+let map = null, leafletMarker = null, warehouseMarker = null;
+let selectedAddress = '', selectedLat = null, selectedLng = null;
 
 document.getElementById('deliveryMethod').addEventListener('change', function() {
     const block = document.getElementById('courierBlock');
@@ -234,26 +280,41 @@ document.getElementById('deliveryMethod').addEventListener('change', function() 
     } else {
         block.style.display = 'none';
         selectedAddress = ''; selectedLat = null; selectedLng = null;
+        currentDeliveryPrice = 0;
+        document.getElementById('deliveryPriceBlock').style.display = 'none';
     }
+    updateGrandTotal();
 });
 
 function initMap() {
-    map = L.map('map').setView([43.238949, 76.889709], 13);
+    // Центр — Астана
+    map = L.map('map').setView([WAREHOUSE_LAT, WAREHOUSE_LNG], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap', maxZoom: 19
     }).addTo(map);
 
+    // Маркер склада (фиолетовый, со звёздочкой)
+    const warehouseIcon = L.divIcon({
+        html: '<div style="width:34px;height:34px;background:#6a1b9a;border-radius:50%;border:3px solid white;' +
+              'box-shadow:0 3px 10px rgba(106,27,154,.6);display:flex;align-items:center;justify-content:center;' +
+              'color:white;font-size:16px;">&#9962;</div>',
+        iconSize:[34,34], iconAnchor:[17,17], className:''
+    });
+    warehouseMarker = L.marker([WAREHOUSE_LAT, WAREHOUSE_LNG], { icon: warehouseIcon })
+        .addTo(map)
+        .bindPopup('<b>Склад LavandaBloom</b><br>Астана, Жиембет жырау 2', { closeButton: false });
+
     map.on('click', async e => {
         placeMarker(e.latlng.lat, e.latlng.lng);
         await reverseGeocode(e.latlng.lat, e.latlng.lng);
+        await fetchDeliveryPrice(e.latlng.lat, e.latlng.lng);
     });
 }
 
 function makeIcon() {
     return L.divIcon({
-        html: `<div style="width:28px;height:28px;background:#8e24aa;border-radius:50% 50% 50% 0;
-            transform:rotate(-45deg);border:3px solid white;
-            box-shadow:0 3px 10px rgba(142,36,170,.5);"></div>`,
+        html: '<div style="width:28px;height:28px;background:#8e24aa;border-radius:50% 50% 50% 0;' +
+              'transform:rotate(-45deg);border:3px solid white;box-shadow:0 3px 10px rgba(142,36,170,.5);"></div>',
         iconSize:[28,28], iconAnchor:[14,28], className:''
     });
 }
@@ -268,17 +329,36 @@ async function reverseGeocode(lat, lng) {
     try {
         const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=ru`);
         const d = await r.json();
-        setAddr(d.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`);
-    } catch { setAddr(`${lat.toFixed(5)}, ${lng.toFixed(5)}`); }
+        setAddr(d.display_name || (lat.toFixed(5) + ', ' + lng.toFixed(5)));
+    } catch { setAddr(lat.toFixed(5) + ', ' + lng.toFixed(5)); }
 }
 
 function setAddr(addr) {
     selectedAddress = addr;
     document.getElementById('selectedAddress').innerHTML =
-        `<i class="fas fa-map-pin addr-icon"></i><span>${addr}</span>`;
+        '<i class="fas fa-map-pin addr-icon"></i><span>' + addr + '</span>';
 }
 
-/* ПОИСК АДРЕСА */
+// Запрашиваем цену доставки с сервера
+async function fetchDeliveryPrice(lat, lng) {
+    try {
+        const r = await fetch('http://localhost:3000/delivery-price', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lat, lng })
+        });
+        const data = await r.json();
+        if (data.price) {
+            currentDeliveryPrice = data.price;
+            document.getElementById('dpDistance').innerText = data.distance + ' км';
+            document.getElementById('dpPrice').innerText = data.price + ' ₸';
+            document.getElementById('deliveryPriceBlock').style.display = 'block';
+            updateGrandTotal();
+        }
+    } catch { /* тихо */ }
+}
+
+/* ── ПОИСК АДРЕСА ── */
 let searchTimer;
 document.getElementById('addrSearch').addEventListener('input', function() {
     clearTimeout(searchTimer);
@@ -293,7 +373,9 @@ document.getElementById('addrSearchBtn').addEventListener('click', () => {
 
 async function geocodeSearch(query) {
     try {
-        const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query+' Алматы')}&format=json&limit=5&accept-language=ru`);
+        // Ищем в Астане
+        const r = await fetch('https://nominatim.openstreetmap.org/search?q=' +
+            encodeURIComponent(query + ' Астана') + '&format=json&limit=5&accept-language=ru');
         const results = await r.json();
         const box = document.getElementById('addrResults');
         if (!results.length) { box.style.display='none'; return; }
@@ -302,13 +384,14 @@ async function geocodeSearch(query) {
             const div = document.createElement('div');
             div.className = 'addr-result-item';
             div.textContent = item.display_name;
-            div.onclick = () => {
+            div.onclick = async () => {
                 const lat = parseFloat(item.lat), lng = parseFloat(item.lon);
                 placeMarker(lat, lng);
                 map.setView([lat, lng], 16);
                 setAddr(item.display_name);
                 document.getElementById('addrSearch').value = item.display_name;
                 box.style.display = 'none';
+                await fetchDeliveryPrice(lat, lng);
             };
             box.appendChild(div);
         });
@@ -321,30 +404,49 @@ document.addEventListener('click', e => {
         document.getElementById('addrResults').style.display = 'none';
 });
 
-/* ОФОРМИТЬ ЗАКАЗ */
+/* ── ОФОРМИТЬ ЗАКАЗ ── */
 document.getElementById('checkoutBtn').onclick = async () => {
     if (!token) return alert('Сначала войдите в аккаунт!');
     if (!cart.length) return alert('Корзина пуста!');
     const method = document.getElementById('deliveryMethod').value;
     if (!method) return alert('Выберите способ доставки!');
     if (method === 'courier' && !selectedAddress) return alert('Укажите адрес доставки на карте!');
+    if (method === 'courier' && !currentDeliveryPrice) return alert('Подождите, считаем цену доставки...');
 
     try {
         const res = await fetch('http://localhost:3000/checkout', {
             method: 'POST',
             headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+token },
-            body: JSON.stringify({ cart, delivery: { method, address: selectedAddress || null } })
+            body: JSON.stringify({
+                cart,
+                delivery: {
+                    method,
+                    address: selectedAddress || null,
+                    lat: selectedLat,
+                    lng: selectedLng,
+                    deliveryPrice: currentDeliveryPrice
+                }
+            })
         });
         const data = await res.json();
         if (data.error) return alert(data.error);
-        alert(`Заказ оформлен! Сумма: ${data.total} ₸${selectedAddress ? '\nАдрес: ' + selectedAddress : ''}`);
+
+        let msg = 'Заказ оформлен!\nТовары: ' + (data.total - data.deliveryPrice) + ' ₸';
+        if (data.deliveryPrice > 0) msg += '\nДоставка: ' + data.deliveryPrice + ' ₸';
+        msg += '\nИтого: ' + data.total + ' ₸';
+        if (selectedAddress) msg += '\nАдрес: ' + selectedAddress;
+        alert(msg);
+
         cart = []; save(); renderCart();
         document.getElementById('deliveryMethod').value = '';
         document.getElementById('courierBlock').style.display = 'none';
-        selectedAddress = '';
-        document.getElementById('selectedAddress').innerHTML =
-            `<i class="fas fa-map-pin addr-icon"></i><span class="no-addr">Адрес не выбран</span>`;
-    } catch { alert('Ошибка при оформлении заказа'); }
+        document.getElementById('deliveryPriceBlock').style.display = 'none';
+        document.getElementById('grandTotalRow').style.display = 'none';
+        selectedAddress = ''; selectedLat = null; selectedLng = null; currentDeliveryPrice = 0;
+    } catch(err) {
+        console.error(err);
+        alert('Ошибка при оформлении заказа');
+    }
 };
 
 renderCart();

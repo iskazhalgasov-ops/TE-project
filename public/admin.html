@@ -5,79 +5,165 @@
     <title>Admin Panel - LavandaBloom</title>
     <link rel="stylesheet" href="admin.css">
     <style>
-        .report-section {
-            max-width: 400px;
+        .reports-section {
+            max-width: 700px;
             margin: 30px auto;
             text-align: center;
         }
-
-        .report-section h2 {
+        .reports-section h2 {
             color: #6a1b9a;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
+            font-size: 22px;
         }
-
+        .reports-row {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .report-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px 28px;
+            box-shadow: 0 4px 20px rgba(142, 36, 170, 0.12);
+            width: 280px;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .report-card:hover {
+            border-color: #ce93d8;
+            box-shadow: 0 6px 28px rgba(142, 36, 170, 0.2);
+        }
+        .report-card h3 {
+            margin: 0 0 6px;
+            color: #4a148c;
+            font-size: 17px;
+        }
+        .report-card p {
+            margin: 0 0 16px;
+            color: #9c27b0;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+        .tag {
+            background: #f3e5f5;
+            color: #6a1b9a;
+            border-radius: 20px;
+            padding: 3px 10px;
+            font-size: 12px;
+        }
         .report-btn {
             display: inline-flex;
             align-items: center;
-            gap: 10px;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
             background: linear-gradient(135deg, #8e24aa, #6a1b9a);
             color: white;
             border: none;
-            padding: 14px 28px;
-            font-size: 16px;
+            padding: 12px 20px;
+            font-size: 15px;
             font-weight: 600;
             border-radius: 30px;
             cursor: pointer;
-            box-shadow: 0 4px 15px rgba(142, 36, 170, 0.35);
+            box-shadow: 0 4px 14px rgba(142, 36, 170, 0.3);
             transition: transform 0.2s, box-shadow 0.2s;
-            text-decoration: none;
         }
-
         .report-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(142, 36, 170, 0.45);
+            box-shadow: 0 8px 20px rgba(142, 36, 170, 0.4);
         }
-
+        .report-btn:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+            transform: none;
+        }
         .report-btn svg {
-            width: 22px;
-            height: 22px;
+            width: 18px;
+            height: 18px;
             flex-shrink: 0;
         }
-
-        .report-hint {
-            margin-top: 10px;
-            font-size: 13px;
-            color: #9c27b0;
+        .report-btn-detail {
+            background: linear-gradient(135deg, #ab47bc, #7b1fa2);
         }
-
+        .report-btn-warehouse {
+            background: linear-gradient(135deg, #26a69a, #00796b);
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
         hr.divider {
             border: none;
             border-top: 2px solid #e1bee7;
             margin: 30px auto;
-            max-width: 500px;
+            max-width: 600px;
         }
     </style>
 </head>
 <body>
     <h1>Админка товаров</h1>
 
-    <!-- ======= КНОПКА ФИНАНСОВОГО ОТЧЁТА ======= -->
-    <div class="report-section">
-        <h2>📊 Финансовый отчёт</h2>
-        <button class="report-btn" onclick="downloadReport()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="7 10 12 15 17 10"/>
-                <line x1="12" y1="15" x2="12" y2="3"/>
-            </svg>
-            Скачать отчёт Excel
-        </button>
-        <p class="report-hint">Продажи по товарам · Заказы по дням · Доставка · Топ покупатели</p>
+    <div class="reports-section">
+        <h2>📊 Финансовые отчёты</h2>
+        <div class="reports-row">
+
+            <div class="report-card">
+                <h3>📈 Общий отчёт</h3>
+                <p>Сводка по всему магазину — продажи, доставка, динамика по дням</p>
+                <div class="tags">
+                    <span class="tag">Сводка</span>
+                    <span class="tag">Товары</span>
+                    <span class="tag">По дням</span>
+                    <span class="tag">Доставка</span>
+                    <span class="tag">Топ покупатели</span>
+                </div>
+                <button class="report-btn" id="btnGeneral" onclick="downloadReport('general')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Скачать Excel
+                </button>
+            </div>
+
+            <div class="report-card">
+                <h3>👥 По клиентам</h3>
+                <p>Точечно по каждому — кто, сколько потратил, что брал, как доставлял</p>
+                <div class="tags">
+                    <span class="tag">Все клиенты</span>
+                    <span class="tag">История заказов</span>
+                    <span class="tag">Состав заказа</span>
+                    <span class="tag">Доставка</span>
+                </div>
+                <button class="report-btn report-btn-detail" id="btnUsers" onclick="downloadReport('users')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    Скачать Excel
+                </button>
+            </div>
+
+            <div class="report-card">
+                <h3>📦 По складу</h3>
+                <p>Сколько каких цветов ушло, когда, кто брал и что берут вместе</p>
+                <div class="tags">
+                    <span class="tag">Движение товаров</span>
+                    <span class="tag">По дням</span>
+                    <span class="tag">Кто что брал</span>
+                    <span class="tag">Берут вместе</span>
+                </div>
+                <button class="report-btn report-btn-warehouse" id="btnWarehouse" onclick="downloadReport('warehouse')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                    Скачать Excel
+                </button>
+            </div>
+
+        </div>
     </div>
 
     <hr class="divider">
 
-    <!-- ======= ФОРМА ДОБАВЛЕНИЯ ТОВАРА ======= -->
     <form id="addForm">
         <input type="text" name="title" placeholder="Название" required>
         <input type="text" name="description" placeholder="Описание" required>
@@ -94,42 +180,47 @@
         const form = document.getElementById('addForm');
         const API_URL = 'http://localhost:3000';
 
-        // ---- Скачать финансовый отчёт ----
-        function downloadReport() {
-            const btn = document.querySelector('.report-btn');
-            btn.textContent = '⏳ Формируется...';
-            btn.disabled = true;
-
-            fetch(`${API_URL}/financial-report`)
-                .then(res => {
-                    if (!res.ok) throw new Error('Ошибка сервера');
-                    return res.blob();
-                })
-                .then(blob => {
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    const today = new Date().toISOString().slice(0, 10);
-                    a.href = url;
-                    a.download = `LavandaBloom_report_${today}.xlsx`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                })
-                .catch(err => {
-                    alert('Не удалось сформировать отчёт: ' + err.message);
-                })
-                .finally(() => {
-                    btn.innerHTML = `
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                            <polyline points="7 10 12 15 17 10"/>
-                            <line x1="12" y1="15" x2="12" y2="3"/>
-                        </svg>
-                        Скачать отчёт Excel`;
-                    btn.disabled = false;
-                });
+        function today() {
+            return new Date().toISOString().slice(0, 10);
         }
 
-        // ---- Товары ----
+        async function downloadReport(type) {
+            const btnMap = { general:'btnGeneral', users:'btnUsers', warehouse:'btnWarehouse' };
+            const urlMap = {
+                general:   `${API_URL}/financial-report`,
+                users:     `${API_URL}/user-report`,
+                warehouse: `${API_URL}/warehouse-report`
+            };
+            const nameMap = {
+                general:   `LavandaBloom_report_${today()}.xlsx`,
+                users:     `LavandaBloom_clients_${today()}.xlsx`,
+                warehouse: `LavandaBloom_warehouse_${today()}.xlsx`
+            };
+            const btn = document.getElementById(btnMap[type]);
+            const url = urlMap[type];
+            const filename = nameMap[type];
+
+            const originalHTML = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Формируется...`;
+
+            try {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('Ошибка сервера ' + res.status);
+                const blob = await res.blob();
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = filename;
+                a.click();
+                URL.revokeObjectURL(a.href);
+            } catch (err) {
+                alert('Не удалось сформировать отчёт: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+            }
+        }
+
         async function fetchProducts() {
             const res = await fetch(`${API_URL}/products`);
             const data = await res.json();
@@ -153,12 +244,8 @@
             e.preventDefault();
             const data = new FormData(form);
             const res = await fetch(`${API_URL}/add-product`, { method: 'POST', body: data });
-            if (res.ok) {
-                form.reset();
-                fetchProducts();
-            } else {
-                alert('Ошибка при добавлении');
-            }
+            if (res.ok) { form.reset(); fetchProducts(); }
+            else alert('Ошибка при добавлении');
         });
 
         async function deleteProduct(id) {
